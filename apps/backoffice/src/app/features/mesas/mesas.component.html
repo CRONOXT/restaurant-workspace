@@ -1,7 +1,7 @@
 <div class="mesas-container">
   <div class="header">
     <h1>Gestión de Mesas</h1>
-    <button class="btn-primary" (click)="createMesa()">+ Nueva Mesa</button>
+    <!-- <button class="btn-primary" (click)="createMesa()">+ Nueva Mesa</button> -->
   </div>
   
   <div *ngIf="loading" class="loading-state">
@@ -17,16 +17,40 @@
     <div class="mesa-card" *ngFor="let mesa of mesas" [ngClass]="{'inactive': !mesa.isActive}">
       <div class="mesa-header">
         <h2>Mesa {{ mesa.numero }}</h2>
-        <span class="status-badge" [ngClass]="mesa.isActive ? 'active' : 'inactive'">
-          {{ mesa.isActive ? 'Activa' : 'Inactiva' }}
-        </span>
+        <div class="status-badges">
+          <span class="badge" [ngClass]="mesa.isActive ? 'badge-active' : 'badge-inactive'">
+            {{ mesa.isActive ? 'Activa' : 'Inactiva' }}
+          </span>
+          <span class="badge" *ngIf="mesa.isOccupied" class="badge bg-warning ms-2" style="background-color: #f59e0b; color: white;">
+            Ocupada
+          </span>
+          <span class="badge" *ngIf="!mesa.isOccupied" class="badge bg-success ms-2" style="background-color: #10b981; color: white;">
+            Libre
+          </span>
+        </div>
       </div>
       <div class="mesa-details">
         <p><i class="icon-users"></i> Capacidad: {{ mesa.capacidad }} personas</p>
       </div>
-      <div class="mesa-actions">
-        <button class="btn-secondary" (click)="showQr(mesa)">Generar QR</button>
-        <button class="btn-outline">Editar</button>
+
+      <div class="mesa-pedidos" *ngIf="mesa.pedidosActivos && mesa.pedidosActivos.length > 0" style="margin-top: 10px; background-color: #f9fafb; padding: 10px; border-radius: 6px; font-size: 0.9em;">
+        <h4 style="margin: 0 0 8px 0; font-size: 0.95em; color: #374151; display: flex; justify-content: space-between; align-items: center;">
+          <span>Pedidos recibidos:</span>
+        </h4>
+        <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-bottom: 4px;">
+          <div *ngFor="let item of getAllItems(mesa) | slice:0:3; let i = index; let last = last">
+            {{ item.cantidad }}x {{ item.nombre }}
+          </div>
+          <div *ngIf="getAllItems(mesa).length > 3" style="color: #6b7280; font-size: 0.85em; font-style: italic; margin-top: 2px;">
+            ... y {{ getAllItems(mesa).length - 3 }} más
+          </div>
+        </div>
+        <button class="btn-primary" (click)="showOrderDetails(mesa)" style="width: 100%; padding: 4px; font-size: 0.85em; margin-top: 4px;">Ver Detalles</button>
+      </div>
+
+      <div class="mesa-actions mt-3" style="display: flex; justify-content: space-between; gap: 8px;">
+        <button class="btn-secondary" (click)="showQr(mesa)" style="flex: 1; padding: 6px;">Ver QR</button>
+        <button class="btn-primary" *ngIf="mesa.isOccupied" (click)="freeMesaManual(mesa)" style="flex: 1; padding: 6px; background-color: #10b981; border: none; color: white; border-radius: 6px; cursor: pointer;">Liberar</button>
       </div>
     </div>
   </div>
@@ -34,17 +58,49 @@
 
 <!-- Modal para QR -->
 <div class="modal-backdrop" *ngIf="selectedMesaQr">
-  <div class="modal-content">
+  <div class="modal-content" style="max-width: 400px; width: 90%;">
     <div class="modal-header">
       <h3>Código QR - Mesa {{ selectedMesaNumber }}</h3>
       <button class="btn-close" (click)="closeQr()">&times;</button>
     </div>
     <div class="qr-container">
       <qrcode [qrdata]="selectedMesaQr" [width]="256" [errorCorrectionLevel]="'M'"></qrcode>
-      <p class="qr-url">{{ selectedMesaQr }}</p>
+      <p class="qr-url" style="word-break: break-all; font-size: 0.8em; margin-top: 10px;">{{ selectedMesaQr }}</p>
     </div>
-    <div class="modal-footer">
-      <button class="btn-primary">Descargar / Imprimir</button>
+    <div class="modal-footer" style="padding-top: 15px; text-align: center;">
+      <button class="btn-primary" (click)="closeQr()">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalles de Pedido -->
+<div class="modal-backdrop" *ngIf="selectedOrderMesa">
+  <div class="modal-content" style="max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+    <div class="modal-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 15px;">
+      <h3 style="margin: 0;">Detalles de Pedido - Mesa {{ selectedOrderMesa.numero }}</h3>
+      <button class="btn-close" (click)="closeOrderDetails()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+    </div>
+    
+    <div class="orders-container" style="padding: 10px 0;">
+      <div *ngFor="let pedido of selectedOrderMesa.pedidosActivos; let i = index" style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e5e7eb;">
+        <div style="font-weight: 600; margin-bottom: 10px; color: #4b5563; font-size: 0.9em; border-bottom: 1px solid #d1d5db; padding-bottom: 5px;">
+          Llamado de orden #{{ i + 1 }}
+        </div>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          <li *ngFor="let item of pedido.items" style="display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.95em;">
+            <span><span style="font-weight: bold; color: #111827;">{{ item.cantidad }}x</span> {{ item.nombre }}</span>
+            <span style="color: #6b7280;">({{ item.precio * item.cantidad | currency }})</span>
+          </li>
+        </ul>
+      </div>
+      
+      <div *ngIf="!selectedOrderMesa.pedidosActivos || selectedOrderMesa.pedidosActivos.length === 0" style="text-align: center; color: #6b7280; padding: 20px;">
+        No hay pedidos recientes.
+      </div>
+    </div>
+
+    <div class="modal-footer" style="border-top: 1px solid #e5e7eb; padding-top: 15px; display: flex; justify-content: flex-end;">
+      <button class="btn-primary" (click)="closeOrderDetails()">Cerrar</button>
     </div>
   </div>
 </div>

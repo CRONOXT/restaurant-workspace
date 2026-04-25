@@ -13,6 +13,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Angular Cache
+.angular/
+
 # IDEs
 .idea/
 .vscode/

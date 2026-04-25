@@ -50,7 +50,7 @@ export class SucursalesComponent implements OnInit {
 
   openCreateModal() {
     this.isEditing = false;
-    this.currentSucursal = { nombre: '', direccion: '', isActive: true };
+    this.currentSucursal = { nombre: '', direccion: '', numeroMesas: 0, isActive: true };
     this.showModal = true;
   }
 

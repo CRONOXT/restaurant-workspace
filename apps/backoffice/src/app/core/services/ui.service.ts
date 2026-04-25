@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { Subject, Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
@@ -30,13 +30,17 @@ export class UiService {
   public toasts$ = this.toastsSubject.asObservable();
   public confirm$ = this.confirmSubject.asObservable();
 
+  constructor(private ngZone: NgZone) {}
+
   showToast(title: string, message: string, type: ToastType = 'info', duration: number = 4000) {
-    this.toastsSubject.next({
-      id: Math.random().toString(36).substring(2, 9),
-      type,
-      title,
-      message,
-      duration
+    this.ngZone.run(() => {
+      this.toastsSubject.next({
+        id: Math.random().toString(36).substring(2, 9),
+        type,
+        title,
+        message,
+        duration
+      });
     });
   }
 

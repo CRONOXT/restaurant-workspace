@@ -2,17 +2,43 @@
   <!-- Loading State -->
   <div class="center-state" *ngIf="loading">
     <div class="spinner"></div>
-    <p>Cargando menú...</p>
+    <p>Cargando información...</p>
   </div>
 
   <!-- Error State -->
   <div class="center-state error" *ngIf="!loading && error">
     <h2>Oops!</h2>
-    <p>No se pudo cargar este menú. Verifica que el código QR sea válido o que tengas conexión.</p>
+    <p>No se pudo cargar la vista solicitada. Verifica que el código QR sea válido o que tengas conexión.</p>
   </div>
 
-  <!-- Content -->
-  <div class="menu-content" *ngIf="!loading && !error && menu">
+  <!-- Vista Selección de Mesa -->
+  <div *ngIf="!loading && !error && viewState === 'select_mesa'" class="select-mesa-view fade-in">
+    <div style="padding: 20px; text-align: center;">
+      <h2 style="margin-bottom: 2rem;">¡Bienvenido!</h2>
+      <p style="margin-bottom: 20px;">Por favor, confirma tu mesa para poder ver el menú o realizar un pedido.</p>
+      
+      <div class="mesas-grid" *ngIf="mesasDisponibles.length > 0; else noMesas">
+        <div 
+          style="border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 15px; padding: 15px; cursor: pointer; text-align: left;"
+          *ngFor="let mesa of mesasDisponibles" 
+          (click)="occupyMesa(mesa)"
+        >
+          <h3 style="margin-bottom: 5px;">Mesa {{ mesa.numero }}</h3>
+          <p style="font-size: 0.9rem; color: #64748b;">Capacidad: {{ mesa.capacidad }} personas</p>
+          <button class="btn-primary" style="width: 100%; margin-top: 10px;">Ocupar Mesa</button>
+        </div>
+      </div>
+      
+      <ng-template #noMesas>
+        <div style="margin-top: 2rem;">
+          <p style="color: #64748b;">La mesa solicitada no está disponible o no hay mesas libres en este momento.</p>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+
+  <!-- Content (Menu) -->
+  <div class="menu-content" *ngIf="!loading && !error && menu && viewState === 'menu'">
     <!-- Header Hero -->
     <header class="menu-hero">
       <div class="overlay"></div>
@@ -37,11 +63,11 @@
 
     <!-- Main Menu List -->
     <main class="menu-list">
-      <div class="empty-state" *ngIf="categorias.length === 0">
+      <div class="empty-state" *ngIf="activeCategories.length === 0">
         <p>Este menú aún no tiene platillos disponibles.</p>
       </div>
 
-      <section *ngFor="let cat of categorias" [id]="'cat-' + cat.id" class="category-section">
+      <section *ngFor="let cat of activeCategories" [id]="'cat-' + cat.id" class="category-section">
         <h2 class="category-title">{{ cat.nombre }}</h2>
         
         <div class="product-card" *ngFor="let prod of cat.productos" [class.unavailable]="!prod.disponible">
@@ -50,8 +76,18 @@
               <h3>{{ prod.nombre }}</h3>
               <span class="product-price">{{ prod.precio | number:'1.2-2' }} {{ menu.moneda || 'USD' }}</span>
             </div>
-            <p class="product-desc">{{ prod.descripcion }}</p>
+            <p class="product-desc" style="margin-bottom: 10px;">{{ prod.descripcion }}</p>
             <span class="status-badge" *ngIf="!prod.disponible">Agotado</span>
+            
+            <div class="product-actions" *ngIf="prod.disponible" style="display: flex; gap: 10px; align-items: center;">
+              <button *ngIf="getProductQuantity(prod.id) === 0" (click)="addToCart(prod)" style="background: #f97316; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 13px;">Agregar</button>
+              
+              <div *ngIf="getProductQuantity(prod.id) > 0" style="display: flex; align-items: center; gap: 10px; background: rgba(249,115,22,0.1); padding: 4px; border-radius: 20px;">
+                <button (click)="removeFromCart(prod.id)" style="width: 28px; height: 28px; border-radius: 50%; border: none; background: white; color: #f97316; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">-</button>
+                <span style="font-weight: 600; font-size: 14px; min-width: 15px; text-align: center;">{{ getProductQuantity(prod.id) }}</span>
+                <button (click)="addToCart(prod)" style="width: 28px; height: 28px; border-radius: 50%; border: none; background: #f97316; color: white; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">+</button>
+              </div>
+            </div>
           </div>
           <div class="product-img" *ngIf="prod.imagen">
             <img [src]="prod.imagen" [alt]="prod.nombre" loading="lazy">
@@ -59,9 +95,52 @@
         </div>
       </section>
     </main>
+
+    <!-- Floating Cart Button -->
+    <div class="floating-cart" *ngIf="cartItemsCount > 0" (click)="toggleCart()" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 12px 24px; border-radius: 30px; display: flex; justify-content: space-between; align-items: center; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000; cursor: pointer;">
+      <div style="display: flex; align-items: center; gap: 10px; font-weight: 600;">
+        <span style="background: #f97316; padding: 2px 8px; border-radius: 12px; font-size: 14px;">{{ cartItemsCount }}</span>
+        <span>Ver Pedido</span>
+      </div>
+      <span style="font-weight: 600;">{{ cartTotal | number:'1.2-2' }} {{ menu.moneda || 'USD' }}</span>
+    </div>
+
+    <!-- Cart Modal/Overlay -->
+    <div class="cart-overlay" *ngIf="isCartOpen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1001; display: flex; flex-direction: column; justify-content: flex-end;">
+      <div class="cart-modal" style="background: white; border-radius: 20px 20px 0 0; padding: 20px; max-height: 80vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+          <h2 style="margin: 0; font-size: 1.25rem;">Tu Pedido</h2>
+          <button (click)="toggleCart()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+        </div>
+
+        <div *ngFor="let item of carrito" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <div style="flex: 1;">
+            <p style="margin: 0; font-weight: 600;">{{ item.producto.nombre }}</p>
+            <p style="margin: 0; font-size: 0.9rem; color: #64748b;">{{ item.producto.precio | number:'1.2-2' }} {{ menu.moneda || 'USD' }} c/u</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 4px; border-radius: 20px;">
+            <button (click)="removeFromCart(item.producto.id)" style="width: 28px; height: 28px; border-radius: 50%; border: none; background: white; font-weight: bold; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">-</button>
+            <span style="font-weight: 600; font-size: 14px; min-width: 15px; text-align: center;">{{ item.cantidad }}</span>
+            <button (click)="addToCart(item.producto)" style="width: 28px; height: 28px; border-radius: 50%; border: none; background: white; font-weight: bold; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">+</button>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 1.1rem; font-weight: 700;">
+            <span>Total</span>
+            <span>{{ cartTotal | number:'1.2-2' }} {{ menu.moneda || 'USD' }}</span>
+          </div>
+          <button (click)="enviarPedido()" class="btn-primary" style="width: 100%; padding: 15px; border-radius: 12px; font-size: 1.1rem; display: flex; justify-content: center; align-items: center; gap: 10px; background: #0ea5e9;">
+            <i class="bi bi-send-fill" style="transform: rotate(45deg);"></i> 
+            Confirmar y Enviar Pedido
+          </button>
+        </div>
+      </div>
+    </div>
     
-    <footer class="app-footer">
+    <footer class="app-footer" style="padding-bottom: 80px;">
       <p>Powered by Restaurant Workspace</p>
     </footer>
   </div>
 </div>
+<app-ui-container></app-ui-container>

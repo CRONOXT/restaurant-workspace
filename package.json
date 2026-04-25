@@ -69,7 +69,9 @@
     "@nestjs/core": "^11.0.0",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/platform-socket.io": "^11.1.19",
     "@nestjs/swagger": "^11.4.1",
+    "@nestjs/websockets": "^11.1.19",
     "@prisma/adapter-pg": "^7.8.0",
     "@types/pg": "^8.20.0",
     "angularx-qrcode": "^21.0.5",
@@ -79,6 +81,7 @@
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
+    "socket.io-client": "^4.8.3",
     "swagger-ui-express": "^5.0.1"
   }
 }

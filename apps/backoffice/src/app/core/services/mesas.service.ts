@@ -10,6 +10,8 @@ export interface Mesa {
   qrCode: string;
   isActive: boolean;
   sucursalId: string;
+  isOccupied?: boolean;
+  pedidosActivos?: any[];
 }
 
 @Injectable({
@@ -37,6 +39,14 @@ export class MesasService {
 
   updateMesa(id: string, mesa: Partial<Mesa>): Observable<Mesa> {
     return this.http.put<Mesa>(`${this.apiUrl}/${id}`, mesa);
+  }
+
+  freeMesa(id: string): Observable<Mesa> {
+    return this.http.put<Mesa>(`${this.apiUrl}/${id}/free`, {});
+  }
+
+  occupyMesa(id: string): Observable<Mesa> {
+    return this.http.put<Mesa>(`${this.apiUrl}/${id}/occupy`, {});
   }
 
   deleteMesa(id: string): Observable<Mesa> {

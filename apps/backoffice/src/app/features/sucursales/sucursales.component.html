@@ -16,6 +16,7 @@
         <tr>
           <th>Nombre</th>
           <th>Dirección</th>
+          <th>Nro. Mesas</th>
           <th>Estado</th>
           <th class="actions-cell">Acciones</th>
         </tr>
@@ -24,6 +25,7 @@
         <tr *ngFor="let item of sucursales">
           <td class="font-medium">{{ item.nombre }}</td>
           <td>{{ item.direccion || 'Sin dirección' }}</td>
+          <td>{{ item.numeroMesas || 0 }}</td>
           <td>
             <span class="badge" [class.badge-active]="item.isActive" [class.badge-inactive]="!item.isActive">
               {{ item.isActive ? 'Activo' : 'Inactivo' }}
@@ -35,7 +37,7 @@
           </td>
         </tr>
         <tr *ngIf="sucursales.length === 0">
-          <td colspan="4" class="text-center py-8 text-gray-500">
+          <td colspan="5" class="text-center py-8 text-gray-500">
             No hay sucursales registradas.
           </td>
         </tr>
@@ -67,6 +69,11 @@
       <div class="form-group">
         <label>Dirección</label>
         <input type="text" class="form-control" [(ngModel)]="currentSucursal.direccion" placeholder="Ej: Av. Siempre Viva 123">
+      </div>
+
+      <div class="form-group">
+        <label>Número de Mesas</label>
+        <input type="number" class="form-control" [(ngModel)]="currentSucursal.numeroMesas" placeholder="Ej: 10" min="0">
       </div>
 
       <div class="form-group checkbox-group" *ngIf="isEditing">

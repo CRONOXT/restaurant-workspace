@@ -7,6 +7,18 @@ export class SucursalService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: Prisma.SucursalCreateInput): Promise<Sucursal> {
+    // Si se especifica numeroMesas, creamos las mesas automáticamente en la BD
+    const numeroMesas = Number(data.numeroMesas) || 0;
+    
+    if (numeroMesas > 0 && !data.mesas) {
+      data.mesas = {
+        create: Array.from({ length: numeroMesas }).map((_, index) => ({
+          numero: index + 1,
+          capacidad: 4 // Capacidad por defecto
+        }))
+      };
+    }
+
     return this.prisma.sucursal.create({ data });
   }
 
@@ -19,6 +31,26 @@ export class SucursalService {
   }
 
   async update(id: string, data: Prisma.SucursalUpdateInput): Promise<Sucursal> {
+    const sucursalActual = await this.prisma.sucursal.findUnique({
+      where: { id },
+      include: { _count: { select: { mesas: true } } }
+    });
+
+    const nuevoNumeroMesas = typeof data.numeroMesas === 'number' 
+      ? data.numeroMesas 
+      : (data.numeroMesas as any)?.set || 0;
+
+    if (sucursalActual && nuevoNumeroMesas > sucursalActual._count.mesas) {
+      const mesasFaltantes = nuevoNumeroMesas - sucursalActual._count.mesas;
+      await this.prisma.mesa.createMany({
+        data: Array.from({ length: mesasFaltantes }).map((_, index) => ({
+          numero: sucursalActual._count.mesas + index + 1,
+          capacidad: 4,
+          sucursalId: id
+        }))
+      });
+    }
+
     return this.prisma.sucursal.update({ where: { id }, data });
   }
 
