@@ -1,0 +1,50 @@
+<div class="mesas-container">
+  <div class="header">
+    <h1>Gestión de Mesas</h1>
+    <button class="btn-primary" (click)="createMesa()">+ Nueva Mesa</button>
+  </div>
+  
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando mesas...</p>
+  </div>
+
+  <div *ngIf="!loading && mesas.length === 0" class="empty-state">
+    <p>No hay mesas configuradas aún. Crea una sucursal en BD y luego una mesa.</p>
+  </div>
+
+  <div class="mesas-grid" *ngIf="!loading && mesas.length > 0">
+    <div class="mesa-card" *ngFor="let mesa of mesas" [ngClass]="{'inactive': !mesa.isActive}">
+      <div class="mesa-header">
+        <h2>Mesa {{ mesa.numero }}</h2>
+        <span class="status-badge" [ngClass]="mesa.isActive ? 'active' : 'inactive'">
+          {{ mesa.isActive ? 'Activa' : 'Inactiva' }}
+        </span>
+      </div>
+      <div class="mesa-details">
+        <p><i class="icon-users"></i> Capacidad: {{ mesa.capacidad }} personas</p>
+      </div>
+      <div class="mesa-actions">
+        <button class="btn-secondary" (click)="showQr(mesa)">Generar QR</button>
+        <button class="btn-outline">Editar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para QR -->
+<div class="modal-backdrop" *ngIf="selectedMesaQr">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Código QR - Mesa {{ selectedMesaNumber }}</h3>
+      <button class="btn-close" (click)="closeQr()">&times;</button>
+    </div>
+    <div class="qr-container">
+      <qrcode [qrdata]="selectedMesaQr" [width]="256" [errorCorrectionLevel]="'M'"></qrcode>
+      <p class="qr-url">{{ selectedMesaQr }}</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary">Descargar / Imprimir</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,89 @@
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Sucursales</h1>
+    <p class="page-subtitle">Gestiona las sedes de tu restaurante</p>
+  </div>
+  <button class="btn-primary" (click)="openCreateModal()">
+    <i class="bi bi-plus-lg"></i> Nueva Sucursal
+  </button>
+</div>
+
+<!-- Table Container -->
+<div class="card">
+  <div class="table-responsive" *ngIf="!loading; else spinner">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Dirección</th>
+          <th>Estado</th>
+          <th class="actions-cell">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of sucursales">
+          <td class="font-medium">{{ item.nombre }}</td>
+          <td>{{ item.direccion || 'Sin dirección' }}</td>
+          <td>
+            <span class="badge" [class.badge-active]="item.isActive" [class.badge-inactive]="!item.isActive">
+              {{ item.isActive ? 'Activo' : 'Inactivo' }}
+            </span>
+          </td>
+          <td class="actions-cell">
+            <button class="btn-icon text-primary" (click)="openEditModal(item)" title="Editar"><i class="bi bi-pencil-square"></i></button>
+            <button class="btn-icon text-danger" (click)="deleteSucursal(item.id!)" title="Eliminar"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>
+        <tr *ngIf="sucursales.length === 0">
+          <td colspan="4" class="text-center py-8 text-gray-500">
+            No hay sucursales registradas.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <ng-template #spinner>
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Cargando sucursales...</p>
+    </div>
+  </ng-template>
+</div>
+
+<!-- Modal (Glassmorphism) -->
+<div class="modal-backdrop" *ngIf="showModal">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h3>{{ isEditing ? 'Editar Sucursal' : 'Nueva Sucursal' }}</h3>
+      <button class="btn-icon" (click)="closeModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Nombre de la Sucursal</label>
+        <input type="text" class="form-control" [(ngModel)]="currentSucursal.nombre" placeholder="Ej: Sede Norte">
+      </div>
+      
+      <div class="form-group">
+        <label>Dirección</label>
+        <input type="text" class="form-control" [(ngModel)]="currentSucursal.direccion" placeholder="Ej: Av. Siempre Viva 123">
+      </div>
+
+      <div class="form-group checkbox-group" *ngIf="isEditing">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="currentSucursal.isActive">
+          <span class="checkmark"></span>
+          Sucursal Activa
+        </label>
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeModal()" [disabled]="saving">Cancelar</button>
+      <button class="btn-primary" (click)="saveSucursal()" [disabled]="saving || !currentSucursal.nombre">
+        <span *ngIf="!saving">{{ isEditing ? 'Guardar Cambios' : 'Crear Sucursal' }}</span>
+        <span *ngIf="saving" class="spinner-small"></span>
+      </button>
+    </div>
+  </div>
+</div>

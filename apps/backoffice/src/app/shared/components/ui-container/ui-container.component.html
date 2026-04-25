@@ -1,0 +1,36 @@
+<!-- Toast Container (Bottom Right) -->
+<div class="toast-container" *ngIf="toasts.length > 0">
+  <div *ngFor="let toast of toasts" class="toast-item" [ngClass]="'toast-' + toast.type">
+    <div class="toast-icon">
+      <i *ngIf="toast.type === 'success'" class="bi bi-check-circle-fill text-success"></i>
+      <i *ngIf="toast.type === 'error'" class="bi bi-exclamation-triangle-fill text-danger"></i>
+      <i *ngIf="toast.type === 'info'" class="bi bi-info-circle-fill text-primary"></i>
+    </div>
+    <div class="toast-content">
+      <h4>{{ toast.title }}</h4>
+      <p>{{ toast.message }}</p>
+    </div>
+    <button class="toast-close btn-icon" (click)="removeToast(toast.id)"><i class="bi bi-x-lg"></i></button>
+  </div>
+</div>
+
+<!-- Premium Confirm Modal -->
+<div class="modal-backdrop" *ngIf="confirmConfig">
+  <div class="modal-panel" style="max-width: 400px; text-align: center;">
+    <div class="confirm-icon text-warning" style="font-size: 3rem; margin-top: 1rem;">
+      <i class="bi bi-exclamation-circle"></i>
+    </div>
+    <div class="modal-body" style="padding-bottom: 0;">
+      <h3>{{ confirmConfig.title }}</h3>
+      <p style="color: var(--text-muted); margin-top: 0.5rem;">{{ confirmConfig.message }}</p>
+    </div>
+    <div class="modal-footer" style="justify-content: center; background: transparent; border-top: none;">
+      <button class="btn-secondary" (click)="onCancel()">
+        {{ confirmConfig.cancelText || 'Cancelar' }}
+      </button>
+      <button class="btn-danger" (click)="onConfirm()">
+        {{ confirmConfig.confirmText || 'Confirmar' }}
+      </button>
+    </div>
+  </div>
+</div>

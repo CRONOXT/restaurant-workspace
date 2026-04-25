@@ -1,0 +1,40 @@
+node_modules/
+
+# Nx
+.nx/
+dist/
+tmp/
+out-tsc/
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Prisma
+*.db
+*.db-journal
+
+# Next.js / React (if applicable)
+.next/
+out/
+build/

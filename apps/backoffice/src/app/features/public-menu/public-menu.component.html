@@ -1,0 +1,67 @@
+<div class="mobile-app">
+  <!-- Loading State -->
+  <div class="center-state" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Cargando menú...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="center-state error" *ngIf="!loading && error">
+    <h2>Oops!</h2>
+    <p>No se pudo cargar este menú. Verifica que el código QR sea válido o que tengas conexión.</p>
+  </div>
+
+  <!-- Content -->
+  <div class="menu-content" *ngIf="!loading && !error && menu">
+    <!-- Header Hero -->
+    <header class="menu-hero">
+      <div class="overlay"></div>
+      <div class="hero-content">
+        <h1>{{ menu.nombre }}</h1>
+        <p>¡Bienvenido! Descubre nuestra deliciosa carta.</p>
+      </div>
+    </header>
+
+    <!-- Sticky Category Nav -->
+    <nav class="category-nav">
+      <ul>
+        <li *ngFor="let cat of categorias">
+          <button 
+            [class.active]="activeCategory === cat.id"
+            (click)="scrollToCategory(cat.id)">
+            {{ cat.nombre }}
+          </button>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Main Menu List -->
+    <main class="menu-list">
+      <div class="empty-state" *ngIf="categorias.length === 0">
+        <p>Este menú aún no tiene platillos disponibles.</p>
+      </div>
+
+      <section *ngFor="let cat of categorias" [id]="'cat-' + cat.id" class="category-section">
+        <h2 class="category-title">{{ cat.nombre }}</h2>
+        
+        <div class="product-card" *ngFor="let prod of cat.productos" [class.unavailable]="!prod.disponible">
+          <div class="product-info">
+            <div class="product-header">
+              <h3>{{ prod.nombre }}</h3>
+              <span class="product-price">{{ prod.precio | number:'1.2-2' }} {{ menu.moneda || 'USD' }}</span>
+            </div>
+            <p class="product-desc">{{ prod.descripcion }}</p>
+            <span class="status-badge" *ngIf="!prod.disponible">Agotado</span>
+          </div>
+          <div class="product-img" *ngIf="prod.imagen">
+            <img [src]="prod.imagen" [alt]="prod.nombre" loading="lazy">
+          </div>
+        </div>
+      </section>
+    </main>
+    
+    <footer class="app-footer">
+      <p>Powered by Restaurant Workspace</p>
+    </footer>
+  </div>
+</div>

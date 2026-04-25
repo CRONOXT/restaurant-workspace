@@ -1,0 +1,134 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <a routerLink="/menus" class="back-link">← Volver a Menús</a>
+      <h2>Gestión de Carta: <span class="highlight">{{ menu?.nombre }}</span></h2>
+      <p class="subtitle">Moneda: {{ menu?.moneda || 'USD' }}</p>
+    </div>
+    <button class="btn-primary" (click)="openCatModal()">+ Nueva Categoría</button>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">Cargando carta...</div>
+
+  <div class="carta-container" *ngIf="!loading">
+    <div class="empty-state" *ngIf="categorias.length === 0">
+      <h3>El menú está vacío</h3>
+      <p>Comienza agregando una categoría para organizar tus productos.</p>
+      <button class="btn-primary" (click)="openCatModal()"><i class="bi bi-plus-lg"></i> Agregar Categoría</button>
+    </div>
+
+    <!-- Accordion Categorías -->
+    <div class="category-list">
+      <div class="category-card" *ngFor="let cat of categorias">
+        <div class="category-header" (click)="toggleCategory(cat.id)">
+          <div class="cat-title-group">
+            <span class="chevron" [class.open]="expandedCategory === cat.id">›</span>
+            <h3>{{ cat.nombre }}</h3>
+            <span class="badge">{{ cat.productos?.length || 0 }} productos</span>
+          </div>
+          <div class="cat-actions" (click)="$event.stopPropagation()">
+            <button class="btn-icon text-primary" (click)="openCatModal(cat)"><i class="bi bi-pencil-square"></i></button>
+            <button class="btn-icon text-danger" (click)="deleteCategoria(cat.id)"><i class="bi bi-trash"></i></button>
+            <button class="btn-secondary sm" (click)="openProdModal(cat.id)"><i class="bi bi-plus-lg"></i> Producto</button>
+          </div>
+        </div>
+
+        <!-- Productos List -->
+        <div class="products-container" *ngIf="expandedCategory === cat.id">
+          <div class="empty-products" *ngIf="!cat.productos?.length">
+            No hay productos en esta categoría.
+          </div>
+          <div class="product-item" *ngFor="let prod of cat.productos">
+            <div class="prod-image">
+              <img [src]="prod.imagen || 'https://placehold.co/100x100?text=No+Img'" alt="{{ prod.nombre }}">
+            </div>
+            <div class="prod-info">
+              <h4>{{ prod.nombre }}</h4>
+              <p class="desc">{{ prod.descripcion }}</p>
+            </div>
+            <div class="prod-price">
+              <span class="price-val">{{ prod.precio | number:'1.2-2' }} {{ menu?.moneda || 'USD' }}</span>
+              <span class="status" [class.active]="prod.disponible">
+                {{ prod.disponible ? 'Disponible' : 'Agotado' }}
+              </span>
+            </div>
+            <div class="prod-actions">
+              <button class="btn-icon text-primary" (click)="openProdModal(cat.id, prod)"><i class="bi bi-pencil-square"></i></button>
+              <button class="btn-icon text-danger" (click)="deleteProducto(prod.id)"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Categoría -->
+<div class="modal-backdrop" *ngIf="showCatModal">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h3>{{ catForm.id ? 'Editar Categoría' : 'Nueva Categoría' }}</h3>
+      <button class="btn-icon" (click)="closeCatModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Nombre de Categoría</label>
+        <input type="text" [(ngModel)]="catForm.nombre" placeholder="Ej. Entradas, Postres...">
+      </div>
+      <div class="form-group">
+        <label>Orden</label>
+        <input type="number" [(ngModel)]="catForm.orden" placeholder="Prioridad de visualización">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeCatModal()">Cancelar</button>
+      <button class="btn-primary" [disabled]="saving || !catForm.nombre" (click)="saveCategoria()">
+        {{ saving ? 'Guardando...' : 'Guardar' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Producto -->
+<div class="modal-backdrop" *ngIf="showProdModal">
+  <div class="modal-panel modal-lg">
+    <div class="modal-header">
+      <h3>{{ prodForm.id ? 'Editar Producto' : 'Nuevo Producto' }}</h3>
+      <button class="btn-icon" (click)="closeProdModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body two-columns">
+      <div class="col">
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" [(ngModel)]="prodForm.nombre" placeholder="Hamburguesa Clásica">
+        </div>
+        <div class="form-group">
+          <label>Precio ({{ menu?.moneda || 'USD' }})</label>
+          <input type="number" [(ngModel)]="prodForm.precio">
+        </div>
+        <div class="form-group check-group">
+          <label>
+            <input type="checkbox" [(ngModel)]="prodForm.disponible">
+            Producto Disponible
+          </label>
+        </div>
+      </div>
+      <div class="col">
+        <div class="form-group">
+          <label>URL de Imagen</label>
+          <input type="text" [(ngModel)]="prodForm.imagen" placeholder="https://...">
+        </div>
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea [(ngModel)]="prodForm.descripcion" rows="3"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeProdModal()">Cancelar</button>
+      <button class="btn-primary" [disabled]="saving || !prodForm.nombre || prodForm.precio === undefined" (click)="saveProducto()">
+        {{ saving ? 'Guardando...' : 'Guardar' }}
+      </button>
+    </div>
+  </div>
+</div>

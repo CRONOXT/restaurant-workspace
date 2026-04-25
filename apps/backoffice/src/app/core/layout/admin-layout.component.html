@@ -1,0 +1,45 @@
+<div class="layout-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">R</div>
+      <span class="logo-text">RestaurantOS</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <ul>
+        <li *ngFor="let item of menuItems">
+          <a [routerLink]="item.route" routerLinkActive="active" class="nav-item">
+            <i class="nav-icon" [ngClass]="item.icon"></i>
+            <span class="nav-label">{{ item.label }}</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- Main Content Area -->
+  <div class="main-wrapper">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-search">
+        <input type="text" placeholder="Buscar...">
+      </div>
+      <div class="topbar-actions">
+        <div class="user-profile" *ngIf="authService.currentUser$ | async as user">
+          <span class="user-name">{{ user.nombre }} ({{ user.rol }})</span>
+          <div class="avatar">{{ user.nombre.charAt(0) }}</div>
+        </div>
+        <button class="btn-logout" (click)="logout()">Salir</button>
+      </div>
+    </header>
+
+    <!-- Router Outlet for Child Routes -->
+    <main class="main-content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>
+
+<!-- Contenedor global de Toasts y Modales de Confirmación -->
+<app-ui-container></app-ui-container>
