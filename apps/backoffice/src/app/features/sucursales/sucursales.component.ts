@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SucursalesService, Sucursal } from '../../core/services/sucursales.service';
 import { UiService } from '../../core/services/ui.service';
-import { finalize } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-sucursales',
@@ -20,6 +21,13 @@ export class SucursalesComponent implements OnInit {
   sucursales: Sucursal[] = [];
   loading = true;
   
+  // Pagination & Search state
+  searchTerm = '';
+  private searchSubject = new Subject<string>();
+  currentPage = 1;
+  pageSize = 10;
+  totalItems = 0;
+
   // Modal state
   showModal = false;
   isEditing = false;
@@ -30,22 +38,46 @@ export class SucursalesComponent implements OnInit {
 
   ngOnInit() {
     this.loadSucursales();
+
+    // Setup debounced search
+    this.searchSubject.pipe(
+      debounceTime(400),
+      distinctUntilChanged()
+    ).subscribe(term => {
+      this.searchTerm = term;
+      this.currentPage = 1; // Reset to first page on search
+      this.loadSucursales();
+    });
+  }
+
+  onSearch(term: string) {
+    this.searchSubject.next(term);
   }
 
   loadSucursales() {
     this.loading = true;
-    this.sucursalesService.getSucursales()
+    this.sucursalesService.getSucursales(this.searchTerm, this.currentPage, this.pageSize)
       .pipe(finalize(() => {
         this.loading = false;
         this.cdr.detectChanges();
       }))
       .subscribe({
-        next: (data) => {
-          this.sucursales = data;
+        next: (res) => {
+          this.sucursales = res.data;
+          this.totalItems = res.total;
           this.cdr.detectChanges();
         },
         error: (err) => console.error('Error cargando sucursales', err)
       });
+  }
+
+  changePage(page: number) {
+    this.currentPage = page;
+    this.loadSucursales();
+  }
+
+  get totalPages(): number {
+    return Math.ceil(this.totalItems / this.pageSize);
   }
 
   openCreateModal() {

@@ -46,10 +46,10 @@
   font-size: 1.5rem;
 }
 
-.stat-icon.sales { background: #dcfce7; }
-.stat-icon.occupation { background: #e0e7ff; }
-.stat-icon.orders { background: #fee2e2; }
-.stat-icon.yield { background: #fef3c7; }
+.stat-icon.sales { background: #ccfbf1; color: #0f766e; }
+.stat-icon.occupation { background: #fef3c7; color: #d97706; }
+.stat-icon.orders { background: #d1fae5; color: #047857; }
+.stat-icon.yield { background: #f1f5f9; color: #475569; }
 
 .stat-details {
   flex: 1;

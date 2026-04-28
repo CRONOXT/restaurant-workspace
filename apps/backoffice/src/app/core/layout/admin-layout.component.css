@@ -79,7 +79,7 @@
 }
 
 .nav-item.active {
-  background-color: #eff6ff;
+  background-color: #f0fdfa; /* Teal light bg */
   color: var(--primary);
 }
 

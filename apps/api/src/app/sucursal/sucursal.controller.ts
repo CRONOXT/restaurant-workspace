@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { SucursalService } from './sucursal.service';
 import { Prisma } from '@prisma/client';
@@ -14,8 +14,12 @@ export class SucursalController {
   }
 
   @Get()
-  findAll() {
-    return this.sucursalService.findAll();
+  findAll(
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.sucursalService.findAll(search, page, limit);
   }
 
   @Get(':id')

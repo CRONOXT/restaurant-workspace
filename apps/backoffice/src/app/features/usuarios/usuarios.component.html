@@ -3,9 +3,16 @@
     <h1 class="page-title">Personal y Usuarios</h1>
     <p class="page-subtitle">Gestiona los administradores, gerentes y camareros</p>
   </div>
-  <button class="btn-primary" (click)="openCreateModal()">
-    <i class="bi bi-person-plus-fill"></i> Nuevo Usuario
-  </button>
+  
+  <div class="header-actions">
+    <div class="search-box">
+      <i class="bi bi-search"></i>
+      <input type="text" [ngModel]="searchTerm" (ngModelChange)="onSearch($event)" placeholder="Buscar por nombre, email o rol...">
+    </div>
+    <button class="btn-primary" (click)="openCreateModal()">
+      <i class="bi bi-person-plus-fill"></i> Nuevo Usuario
+    </button>
+  </div>
 </div>
 
 <!-- Table Container -->
@@ -52,11 +59,25 @@
         </tr>
         <tr *ngIf="usuarios.length === 0">
           <td colspan="6" class="text-center py-8 text-gray-500">
-            No hay usuarios registrados.
+            No se encontraron usuarios.
           </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Paginación -->
+    <div class="pagination" *ngIf="totalItems > pageSize">
+      <span class="pagination-info">Mostrando {{ usuarios.length }} de {{ totalItems }} registros</span>
+      <div class="pagination-controls">
+        <button class="btn-pagination" [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <span class="pagination-current">Página {{ currentPage }} de {{ totalPages }}</span>
+        <button class="btn-pagination" [disabled]="currentPage === totalPages" (click)="changePage(currentPage + 1)">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
   </div>
   <ng-template #spinner>
     <div class="loading-state">

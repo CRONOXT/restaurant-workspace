@@ -77,7 +77,8 @@ export class PedidoService {
     });
   }
 
-  async findAll(sucursalId?: string, estado?: EstadoPedido) {
+  async findAll(sucursalId?: string, estado?: EstadoPedido, search?: string, page = 1, limit = 20): Promise<{ data: any[], total: number }> {
+    const skip = (page - 1) * limit;
     const where: any = {};
     if (sucursalId) {
       where.mesa = { sucursalId };
@@ -85,11 +86,25 @@ export class PedidoService {
     if (estado) {
       where.estado = estado;
     }
-    return this.prisma.pedido.findMany({
-      where,
-      include: { mesa: { include: { sucursal: true } }, comensal: true },
-      orderBy: { createdAt: 'desc' }
-    });
+    if (search) {
+      where.OR = [
+        { notas: { contains: search, mode: 'insensitive' } },
+        { comensal: { nombre: { contains: search, mode: 'insensitive' } } }
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.pedido.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        include: { mesa: { include: { sucursal: true } }, comensal: true },
+        orderBy: { createdAt: 'desc' }
+      }),
+      this.prisma.pedido.count({ where })
+    ]);
+
+    return { data, total };
   }
 
   async findOne(id: string) {

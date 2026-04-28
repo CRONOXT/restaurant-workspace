@@ -84,7 +84,7 @@ model Pedido {
 model Menu {
   id          String      @id @default(uuid())
   nombre      String
-  sucursalId  String
+  sucursalId  String      @unique
   sucursal    Sucursal    @relation(fields: [sucursalId], references: [id])
   categorias  Categoria[]
   moneda      String      @default("USD")
@@ -112,7 +112,7 @@ model Producto {
   imagen      String?
   disponible  Boolean    @default(true)
   categoriaId String
-  categoria   Categoria  @relation(fields: [categoriaId], references: [id])
+  categoria   Categoria  @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 }

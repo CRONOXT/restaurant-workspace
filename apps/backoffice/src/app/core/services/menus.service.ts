@@ -18,8 +18,13 @@ export class MenusService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/menu`;
 
-  getMenus(): Observable<Menu[]> {
-    return this.http.get<Menu[]>(this.apiUrl);
+  getMenus(search?: string, page?: number, limit?: number): Observable<{ data: Menu[], total: number }> {
+    let params: any = {};
+    if (search) params.search = search;
+    if (page) params.page = page;
+    if (limit) params.limit = limit;
+
+    return this.http.get<{ data: Menu[], total: number }>(this.apiUrl, { params });
   }
 
   getMenu(id: string): Observable<Menu> {

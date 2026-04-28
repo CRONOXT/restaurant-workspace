@@ -18,8 +18,14 @@ export class CategoriaService {
     });
   }
 
-  async update(id: string, data: Prisma.CategoriaUpdateInput): Promise<Categoria> {
-    return this.prisma.categoria.update({ where: { id }, data });
+  async update(id: string, data: any): Promise<Categoria> {
+    // Limpiar campos que no deben enviarse en el update
+    const { id: _, createdAt, updatedAt, productos, ...cleanData } = data;
+    
+    return this.prisma.categoria.update({ 
+      where: { id }, 
+      data: cleanData 
+    });
   }
 
   async remove(id: string): Promise<Categoria> {

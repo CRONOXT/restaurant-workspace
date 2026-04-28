@@ -25,9 +25,9 @@ export class DashboardComponent implements OnInit {
       {
         data: [],
         label: 'Ventas ($)',
-        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-        borderColor: '#3b82f6',
-        pointBackgroundColor: '#2563eb',
+        backgroundColor: 'rgba(15, 118, 110, 0.2)', // Teal 700 with opacity
+        borderColor: '#0f766e',
+        pointBackgroundColor: '#0d9488',
         fill: 'origin',
         tension: 0.4
       }
@@ -51,7 +51,7 @@ export class DashboardComponent implements OnInit {
   public pieChartData: ChartConfiguration<'pie'>['data'] = {
     datasets: [{
       data: [],
-      backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+      backgroundColor: ['#0f766e', '#d97706', '#047857', '#be123c', '#4338ca']
     }],
     labels: []
   };

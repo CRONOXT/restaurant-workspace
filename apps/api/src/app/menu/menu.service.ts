@@ -10,10 +10,27 @@ export class MenuService {
     return this.prisma.menu.create({ data });
   }
 
-  async findAll(): Promise<Menu[]> {
-    return this.prisma.menu.findMany({
-      include: { sucursal: true, categorias: true }
-    });
+  async findAll(search?: string, page = 1, limit = 10): Promise<{ data: Menu[], total: number }> {
+    const skip = (page - 1) * limit;
+    const where: Prisma.MenuWhereInput = search ? {
+      OR: [
+        { nombre: { contains: search, mode: 'insensitive' } },
+        { moneda: { contains: search, mode: 'insensitive' } },
+      ]
+    } : {};
+
+    const [data, total] = await Promise.all([
+      this.prisma.menu.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        include: { sucursal: true, categorias: true },
+        orderBy: { createdAt: 'desc' }
+      }),
+      this.prisma.menu.count({ where })
+    ]);
+
+    return { data, total };
   }
 
   async findOne(id: string): Promise<Menu | null> {
@@ -23,10 +40,11 @@ export class MenuService {
     });
   }
 
-  async update(id: string, data: Prisma.MenuUpdateInput): Promise<Menu> {
+  async update(id: string, data: any): Promise<Menu> {
+    const { id: _, createdAt, updatedAt, categorias, sucursal, ...cleanData } = data;
     return this.prisma.menu.update({
       where: { id },
-      data,
+      data: cleanData,
     });
   }
 

@@ -78,12 +78,15 @@ export class PedidosService {
     return this.http.get<Pedido[]>(url);
   }
 
-  getPedidos(sucursalId?: string, estado?: EstadoPedido): Observable<Pedido[]> {
-    const params: string[] = [];
-    if (sucursalId) params.push(`sucursalId=${sucursalId}`);
-    if (estado) params.push(`estado=${estado}`);
-    const query = params.length > 0 ? `?${params.join('&')}` : '';
-    return this.http.get<Pedido[]>(`${this.apiUrl}${query}`);
+  getPedidos(sucursalId?: string, estado?: EstadoPedido, search?: string, page?: number, limit?: number): Observable<{ data: Pedido[], total: number }> {
+    let params: any = {};
+    if (sucursalId) params.sucursalId = sucursalId;
+    if (estado) params.estado = estado;
+    if (search) params.search = search;
+    if (page) params.page = page;
+    if (limit) params.limit = limit;
+    
+    return this.http.get<{ data: Pedido[], total: number }>(this.apiUrl, { params });
   }
 
   getPedido(id: string): Observable<Pedido> {

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Put, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Query } from '@nestjs/common';
 import { ProductoService } from './producto.service';
 import { Prisma } from '@prisma/client';
 
@@ -9,6 +9,16 @@ export class ProductoController {
   @Post()
   create(@Body() data: Prisma.ProductoUncheckedCreateInput) {
     return this.productoService.create(data);
+  }
+
+  @Get()
+  findAll(
+    @Query('categoriaId') categoriaId?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.productoService.findAll(categoriaId, search, page, limit);
   }
 
   @Put(':id')

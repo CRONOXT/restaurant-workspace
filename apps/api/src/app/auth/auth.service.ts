@@ -29,7 +29,8 @@ export class AuthService {
         id: user.id,
         email: user.email,
         nombre: user.nombre,
-        rol: user.rol
+        rol: user.rol,
+        sucursalId: user.sucursalId
       }
     };
   }

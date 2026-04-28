@@ -170,7 +170,7 @@
           <div class="product-info">
             <div class="product-header">
               <h3>{{ prod.nombre }}</h3>
-              <span class="product-price">{{ prod.precio | number:'1.2-2' }} {{ menu.moneda || 'USD' }}</span>
+              <span class="product-price">{{ prod.precio | number:'1.2-2' }} {{ menu?.moneda || 'USD' }}</span>
             </div>
             <p class="product-desc" style="margin-bottom: 10px;">{{ prod.descripcion }}</p>
             <span class="status-badge" *ngIf="!prod.disponible">Agotado</span>
@@ -313,7 +313,7 @@
         <span style="background: #f97316; padding: 2px 8px; border-radius: 12px; font-size: 14px;">{{ cartItemsCount }}</span>
         <span>Ver Pedido</span>
       </div>
-      <span style="font-weight: 600;">{{ cartTotal | number:'1.2-2' }} {{ menu.moneda || 'USD' }}</span>
+      <span style="font-weight: 600;">{{ cartTotal | number:'1.2-2' }} {{ menu?.moneda || 'USD' }}</span>
     </div>
 
     <!-- Cart Modal/Overlay -->
@@ -327,7 +327,7 @@
         <div *ngFor="let item of carrito" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
           <div style="flex: 1;">
             <p style="margin: 0; font-weight: 600;">{{ item.producto.nombre }}</p>
-            <p style="margin: 0; font-size: 0.9rem; color: #64748b;">{{ item.producto.precio | number:'1.2-2' }} {{ menu.moneda || 'USD' }} c/u</p>
+            <p style="margin: 0; font-size: 0.9rem; color: #64748b;">{{ item.producto.precio | number:'1.2-2' }} {{ menu?.moneda || 'USD' }} c/u</p>
           </div>
           <div style="display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 4px; border-radius: 20px;">
             <button (click)="removeFromCart(item.producto.id)" style="width: 28px; height: 28px; border-radius: 50%; border: none; background: white; font-weight: bold; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">-</button>
@@ -351,7 +351,7 @@
         <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 1.1rem; font-weight: 700;">
             <span>Total</span>
-            <span>{{ cartTotal | number:'1.2-2' }} {{ menu.moneda || 'USD' }}</span>
+            <span>{{ cartTotal | number:'1.2-2' }} {{ menu?.moneda || 'USD' }}</span>
           </div>
           <button (click)="enviarPedido()" class="btn-action" style="width: 100%; padding: 15px; font-size: 1.1rem;">
             {{ esCompartido ? '🤝 Enviar Pedido Compartido' : '📩 Confirmar y Enviar Pedido' }}

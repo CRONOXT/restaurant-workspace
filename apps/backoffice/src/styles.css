@@ -1,15 +1,17 @@
 /* Global Design System */
 
 :root {
-  /* Colors */
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --secondary: #f3f4f6;
-  --secondary-hover: #e5e7eb;
-  --danger: #ef4444;
-  --danger-hover: #dc2626;
-  --success: #10b981;
-  --warning: #f59e0b;
+  /* Colors: Savor Theme (Teal & Gold) */
+  --primary: #0f766e;
+  --primary-hover: #0d9488;
+  --accent: #d97706;
+  --accent-hover: #b45309;
+  --secondary: #f1f5f9;
+  --secondary-hover: #e2e8f0;
+  --danger: #be123c;
+  --danger-hover: #9f1239;
+  --success: #047857;
+  --warning: #b45309;
   
   --bg-color: #f8fafc;
   --surface: #ffffff;
@@ -305,4 +307,100 @@ body {
     max-width: 100%;
     border-radius: var(--radius-md);
   }
+}
+/* ================== PAGE LAYOUT ================== */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 2rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-box i {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.search-box input {
+  padding: 0.625rem 1rem 0.625rem 2.2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  width: 280px;
+  transition: var(--transition);
+  background-color: var(--surface);
+}
+
+.search-box input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+  width: 320px;
+}
+
+/* ================== PAGINATION ================== */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-color);
+  font-size: 0.875rem;
+}
+
+.pagination-info {
+  color: var(--text-muted);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pagination-current {
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.btn-pagination {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  color: var(--text-main);
+}
+
+.btn-pagination:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #f0fdfa;
+}
+
+.btn-pagination:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f1f5f9;
 }

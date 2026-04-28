@@ -18,8 +18,13 @@ export class SucursalesService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/sucursal`;
 
-  getSucursales(): Observable<Sucursal[]> {
-    return this.http.get<Sucursal[]>(this.apiUrl);
+  getSucursales(search?: string, page?: number, limit?: number): Observable<{ data: Sucursal[], total: number }> {
+    let params: any = {};
+    if (search) params.search = search;
+    if (page) params.page = page;
+    if (limit) params.limit = limit;
+    
+    return this.http.get<{ data: Sucursal[], total: number }>(this.apiUrl, { params });
   }
 
   getSucursal(id: string): Observable<Sucursal> {

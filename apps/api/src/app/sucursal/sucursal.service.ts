@@ -22,8 +22,26 @@ export class SucursalService {
     return this.prisma.sucursal.create({ data });
   }
 
-  async findAll(): Promise<Sucursal[]> {
-    return this.prisma.sucursal.findMany();
+  async findAll(search?: string, page = 1, limit = 10): Promise<{ data: Sucursal[], total: number }> {
+    const skip = (page - 1) * limit;
+    const where: Prisma.SucursalWhereInput = search ? {
+      OR: [
+        { nombre: { contains: search, mode: 'insensitive' } },
+        { direccion: { contains: search, mode: 'insensitive' } },
+      ]
+    } : {};
+
+    const [data, total] = await Promise.all([
+      this.prisma.sucursal.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        orderBy: { createdAt: 'desc' }
+      }),
+      this.prisma.sucursal.count({ where })
+    ]);
+
+    return { data, total };
   }
 
   async findOne(id: string): Promise<Sucursal | null> {
@@ -51,7 +69,9 @@ export class SucursalService {
       });
     }
 
-    return this.prisma.sucursal.update({ where: { id }, data });
+    const { id: _, createdAt, updatedAt, mesas, menus, usuarios, ...cleanData } = data as any;
+
+    return this.prisma.sucursal.update({ where: { id }, data: cleanData });
   }
 
   async remove(id: string): Promise<Sucursal> {

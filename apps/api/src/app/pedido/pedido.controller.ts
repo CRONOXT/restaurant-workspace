@@ -29,12 +29,15 @@ export class PedidoController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Obtener todos los pedidos, opcional por sucursalId y/o estado' })
+  @ApiOperation({ summary: 'Obtener todos los pedidos con búsqueda y paginación' })
   findAll(
     @Query('sucursalId') sucursalId?: string,
-    @Query('estado') estado?: EstadoPedido
+    @Query('estado') estado?: EstadoPedido,
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
-    return this.pedidoService.findAll(sucursalId, estado);
+    return this.pedidoService.findAll(sucursalId, estado, search, page, limit);
   }
 
   @Get('mesa/:mesaId')

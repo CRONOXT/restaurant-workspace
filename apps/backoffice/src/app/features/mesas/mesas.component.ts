@@ -8,6 +8,7 @@ import { UiService } from '../../core/services/ui.service';
 import { EventsService } from '../../core/services/events.service';
 import { finalize } from 'rxjs/operators';
 import { Subscription } from 'rxjs';
+import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
   selector: 'app-mesas',
@@ -21,6 +22,7 @@ export class MesasComponent implements OnInit, OnDestroy {
   private pedidosService = inject(PedidosService);
   private sesionesService = inject(SesionesService);
   private eventsService = inject(EventsService);
+  private authService = inject(AuthService);
   private uiService = inject(UiService);
   private cdr = inject(ChangeDetectorRef);
   private subscriptions: Subscription = new Subscription();
@@ -199,14 +201,20 @@ export class MesasComponent implements OnInit, OnDestroy {
   loadMesas() {
     this.loading = true;
     this.cdr.detectChanges();
-    this.mesasService.getMesas()
+
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const sucursalId = user.sucursalId || undefined;
+
+    this.mesasService.getMesas(undefined, 1, 100, sucursalId) // Cargar mesas filtradas por sucursal si aplica
       .pipe(finalize(() => { this.loading = false; this.cdr.detectChanges(); }))
       .subscribe({
-        next: (data) => {
-          this.mesas = data;
-          if (data.length > 0 && !this.connectedSucursalId) {
-            this.connectedSucursalId = data[0].sucursalId;
-            this.eventsService.connect(this.connectedSucursalId);
+        next: (res) => {
+          this.mesas = res.data;
+          // Si el usuario tiene sucursalId, usamos esa para WS, sino la primera de la lista
+          const wsSucursalId = sucursalId || (res.data.length > 0 ? res.data[0].sucursalId : null);
+          if (wsSucursalId && !this.connectedSucursalId) {
+            this.connectedSucursalId = wsSucursalId;
+            this.eventsService.connect(wsSucursalId);
           }
         },
         error: (err) => console.error('Error cargando mesas', err)

@@ -14,9 +14,14 @@ export class MesaController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Obtener todas las mesas, opcional por sucursalId' })
-  findAll(@Query('sucursalId') sucursalId?: string) {
-    return this.mesaService.findAll(sucursalId);
+  @ApiOperation({ summary: 'Obtener todas las mesas con búsqueda y paginación' })
+  findAll(
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('sucursalId') sucursalId?: string,
+  ) {
+    return this.mesaService.findAll(search, page, limit, sucursalId);
   }
 
   @Get(':id')

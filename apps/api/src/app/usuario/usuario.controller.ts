@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { UsuarioService } from './usuario.service';
 import { Prisma } from '@prisma/client';
@@ -14,8 +14,12 @@ export class UsuarioController {
   }
 
   @Get()
-  findAll() {
-    return this.usuarioService.findAll();
+  findAll(
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.usuarioService.findAll(search, page, limit);
   }
 
   @Get(':id')

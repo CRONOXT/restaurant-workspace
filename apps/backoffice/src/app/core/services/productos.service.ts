@@ -8,6 +8,15 @@ import { environment } from '../../../environments/environment';
 export class ProductosService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/producto`;
+  getProductos(categoriaId?: string, search?: string, page?: number, limit?: number): Observable<{ data: Producto[], total: number }> {
+    let params: any = {};
+    if (categoriaId) params.categoriaId = categoriaId;
+    if (search) params.search = search;
+    if (page) params.page = page;
+    if (limit) params.limit = limit;
+
+    return this.http.get<{ data: Producto[], total: number }>(this.apiUrl, { params });
+  }
 
   createProducto(producto: Partial<Producto>): Observable<Producto> {
     return this.http.post<Producto>(this.apiUrl, producto);

@@ -21,8 +21,14 @@ export class MesasService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/mesa`;
 
-  getMesas(): Observable<Mesa[]> {
-    return this.http.get<Mesa[]>(this.apiUrl);
+  getMesas(search?: string, page?: number, limit?: number, sucursalId?: string): Observable<{ data: Mesa[], total: number }> {
+    let params: any = {};
+    if (search) params.search = search;
+    if (page) params.page = page;
+    if (limit) params.limit = limit;
+    if (sucursalId) params.sucursalId = sucursalId;
+
+    return this.http.get<{ data: Mesa[], total: number }>(this.apiUrl, { params });
   }
 
   getMesa(id: string): Observable<Mesa> {

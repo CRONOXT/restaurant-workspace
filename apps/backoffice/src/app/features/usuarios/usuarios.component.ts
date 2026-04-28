@@ -4,7 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { UsuariosService, Usuario } from '../../core/services/usuarios.service';
 import { SucursalesService, Sucursal } from '../../core/services/sucursales.service';
 import { UiService } from '../../core/services/ui.service';
-import { finalize } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-usuarios',
@@ -23,6 +24,58 @@ export class UsuariosComponent implements OnInit {
   sucursales: Sucursal[] = [];
   loading = true;
   
+  // Pagination & Search state
+  searchTerm = '';
+  private searchSubject = new Subject<string>();
+  currentPage = 1;
+  pageSize = 10;
+  totalItems = 0;
+
+  ngOnInit() {
+    this.loadUsuarios();
+    this.loadSucursales();
+
+    // Setup debounced search
+    this.searchSubject.pipe(
+      debounceTime(400),
+      distinctUntilChanged()
+    ).subscribe(term => {
+      this.searchTerm = term;
+      this.currentPage = 1;
+      this.loadUsuarios();
+    });
+  }
+
+  onSearch(term: string) {
+    this.searchSubject.next(term);
+  }
+
+  loadUsuarios() {
+    this.loading = true;
+    this.usuariosService.getUsuarios(this.searchTerm, this.currentPage, this.pageSize)
+      .pipe(finalize(() => {
+        this.loading = false;
+        this.cdr.detectChanges();
+      }))
+      .subscribe({
+        next: (res) => {
+          this.usuarios = res.data;
+          this.totalItems = res.total;
+          this.cdr.detectChanges();
+        },
+        error: (err) => console.error('Error cargando usuarios', err)
+      });
+  }
+
+  changePage(page: number) {
+    this.currentPage = page;
+    this.loadUsuarios();
+  }
+
+  get totalPages(): number {
+    return Math.ceil(this.totalItems / this.pageSize);
+  }
+  
   // Modal state
   showModal = false;
   isEditing = false;
@@ -31,31 +84,10 @@ export class UsuariosComponent implements OnInit {
   // Form model
   currentUsuario: Partial<Usuario> = {};
 
-  ngOnInit() {
-    this.loadUsuarios();
-    this.loadSucursales();
-  }
-
-  loadUsuarios() {
-    this.loading = true;
-    this.usuariosService.getUsuarios()
-      .pipe(finalize(() => {
-        this.loading = false;
-        this.cdr.detectChanges();
-      }))
-      .subscribe({
-        next: (data) => {
-          this.usuarios = data;
-          this.cdr.detectChanges();
-        },
-        error: (err) => console.error('Error cargando usuarios', err)
-      });
-  }
-
   loadSucursales() {
     this.sucursalesService.getSucursales().subscribe({
-      next: (data) => {
-        this.sucursales = data;
+      next: (res) => {
+        this.sucursales = res.data;
         this.cdr.detectChanges();
       }
     });
@@ -87,14 +119,20 @@ export class UsuariosComponent implements OnInit {
   }
 
   saveUsuario() {
+    // Validación: Camareros y Gerentes DEBEN tener una sucursal
+    if ((this.currentUsuario.rol === 'CAMARERO' || this.currentUsuario.rol === 'GERENTE') && !this.currentUsuario.sucursalId) {
+      this.uiService.showToast('Atención', 'Los usuarios con rol Camarero o Gerente deben tener una sucursal asociada.', 'error');
+      return;
+    }
+
     this.saving = true;
     
     // No enviamos el ID en el payload, solo en la URL si es update
     const { id, ...dataToSave } = this.currentUsuario;
     
-    // Si no se asignó sucursal, asegurar que vaya como undefined (o omitirlo)
+    // Si no se asignó sucursal (para ADMIN), asegurar que vaya como null
     if (!dataToSave.sucursalId) {
-      delete dataToSave.sucursalId;
+      dataToSave.sucursalId = null as any;
     }
 
     const request = this.isEditing && id

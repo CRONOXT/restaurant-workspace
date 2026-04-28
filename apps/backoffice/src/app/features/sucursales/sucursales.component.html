@@ -3,9 +3,16 @@
     <h1 class="page-title">Sucursales</h1>
     <p class="page-subtitle">Gestiona las sedes de tu restaurante</p>
   </div>
-  <button class="btn-primary" (click)="openCreateModal()">
-    <i class="bi bi-plus-lg"></i> Nueva Sucursal
-  </button>
+  
+  <div class="header-actions">
+    <div class="search-box">
+      <i class="bi bi-search"></i>
+      <input type="text" [ngModel]="searchTerm" (ngModelChange)="onSearch($event)" placeholder="Buscar sucursal...">
+    </div>
+    <button class="btn-primary" (click)="openCreateModal()">
+      <i class="bi bi-plus-lg"></i> Nueva Sucursal
+    </button>
+  </div>
 </div>
 
 <!-- Table Container -->
@@ -38,11 +45,25 @@
         </tr>
         <tr *ngIf="sucursales.length === 0">
           <td colspan="5" class="text-center py-8 text-gray-500">
-            No hay sucursales registradas.
+            No se encontraron sucursales.
           </td>
         </tr>
       </tbody>
     </table>
+    
+    <!-- Paginación -->
+    <div class="pagination" *ngIf="totalItems > pageSize">
+      <span class="pagination-info">Mostrando {{ sucursales.length }} de {{ totalItems }} registros</span>
+      <div class="pagination-controls">
+        <button class="btn-pagination" [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <span class="pagination-current">Página {{ currentPage }} de {{ totalPages }}</span>
+        <button class="btn-pagination" [disabled]="currentPage === totalPages" (click)="changePage(currentPage + 1)">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
   </div>
   <ng-template #spinner>
     <div class="loading-state">

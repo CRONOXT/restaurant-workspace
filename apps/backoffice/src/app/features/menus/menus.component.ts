@@ -1,9 +1,10 @@
-import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import * as QRCode from 'qrcode';
-import { finalize } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, finalize } from 'rxjs/operators';
 import { Menu, MenusService } from '../../core/services/menus.service';
 import {
   Sucursal,
@@ -28,6 +29,13 @@ export class MenusComponent implements OnInit {
   menus: Menu[] = [];
   sucursales: Sucursal[] = [];
   loading = true;
+
+  // Pagination & Search state
+  searchTerm = '';
+  private searchSubject = new Subject<string>();
+  currentPage = 1;
+  pageSize = 10;
+  totalItems = 0;
 
   // Modal state
   showModal = false;
@@ -55,12 +63,26 @@ export class MenusComponent implements OnInit {
     
     this.loadMenus();
     this.loadSucursales();
+
+    // Setup debounced search
+    this.searchSubject.pipe(
+      debounceTime(400),
+      distinctUntilChanged()
+    ).subscribe(term => {
+      this.searchTerm = term;
+      this.currentPage = 1;
+      this.loadMenus();
+    });
+  }
+
+  onSearch(term: string) {
+    this.searchSubject.next(term);
   }
 
   loadMenus() {
     this.loading = true;
     this.menusService
-      .getMenus()
+      .getMenus(this.searchTerm, this.currentPage, this.pageSize)
       .pipe(
         finalize(() => {
           this.loading = false;
@@ -68,20 +90,51 @@ export class MenusComponent implements OnInit {
         }),
       )
       .subscribe({
-        next: (data) => {
-          this.menus = data;
+        next: (res) => {
+          this.menus = res.data;
+          this.totalItems = res.total;
           this.cdr.detectChanges();
         },
         error: (err) => console.error('Error cargando menús', err),
       });
   }
 
+  changePage(page: number) {
+    this.currentPage = page;
+    this.loadMenus();
+  }
+
+  get totalPages(): number {
+    return Math.ceil(this.totalItems / this.pageSize);
+  }
+
   loadSucursales() {
     this.sucursalesService.getSucursales().subscribe({
-      next: (data) => {
-        this.sucursales = data;
+      next: (res) => {
+        this.sucursales = res.data;
         this.cdr.detectChanges();
       },
+    });
+  }
+
+  /**
+   * Obtiene las sucursales que no tienen un menú asignado.
+   * Si estamos editando, permitimos la sucursal actual del menú que se edita.
+   */
+  get availableSucursales(): Sucursal[] {
+    const busySucursalIds = this.menus
+      .map((m) => m.sucursalId)
+      .filter((id) => {
+        // Si estamos editando, no bloqueamos la sucursal del menú actual
+        if (this.isEditing && id === this.currentMenu.sucursalId) {
+          return false;
+        }
+        return true;
+      });
+
+    return this.sucursales.filter((s) => {
+      if (!s.id) return false;
+      return !busySucursalIds.includes(s.id);
     });
   }
 

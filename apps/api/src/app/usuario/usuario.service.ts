@@ -17,12 +17,31 @@ export class UsuarioService {
     });
   }
 
-  async findAll(): Promise<Omit<Usuario, 'password'>[]> {
-    const usuarios = await this.prisma.usuario.findMany();
-    return usuarios.map(u => {
+  async findAll(search?: string, page = 1, limit = 10): Promise<{ data: Omit<Usuario, 'password'>[], total: number }> {
+    const skip = (page - 1) * limit;
+    const where: Prisma.UsuarioWhereInput = search ? {
+      OR: [
+        { nombre: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ]
+    } : {};
+
+    const [usuarios, total] = await Promise.all([
+      this.prisma.usuario.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        orderBy: { createdAt: 'desc' }
+      }),
+      this.prisma.usuario.count({ where })
+    ]);
+
+    const data = usuarios.map(u => {
       const { password, ...result } = u;
       return result;
     });
+
+    return { data, total };
   }
 
   async findOne(id: string): Promise<Usuario | null> {

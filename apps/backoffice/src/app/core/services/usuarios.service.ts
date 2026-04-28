@@ -20,8 +20,13 @@ export class UsuariosService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/usuario`;
 
-  getUsuarios(): Observable<Usuario[]> {
-    return this.http.get<Usuario[]>(this.apiUrl);
+  getUsuarios(search?: string, page?: number, limit?: number): Observable<{ data: Usuario[], total: number }> {
+    let params: any = {};
+    if (search) params.search = search;
+    if (page) params.page = page;
+    if (limit) params.limit = limit;
+
+    return this.http.get<{ data: Usuario[], total: number }>(this.apiUrl, { params });
   }
 
   getUsuario(id: string): Observable<Usuario> {
