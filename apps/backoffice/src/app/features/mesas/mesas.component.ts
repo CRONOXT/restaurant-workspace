@@ -164,8 +164,15 @@ export class MesasComponent implements OnInit, OnDestroy {
           '⚠️ Solicitud de Cierre',
           `Mesa ${data.mesaNumero}: ${data.solicitadoPor} quiere cerrar la mesa. ¡Revísala!`,
           'info',
-          0 // no auto-dismiss
         );
+      })
+    );
+
+    // Cada vez que se reconecte, refrescamos el estado completo para evitar datos huérfanos
+    this.subscriptions.add(
+      this.eventsService.onReconnect().subscribe(() => {
+        console.log('🔄 Reconectado: Refrescando estado de mesas...');
+        this.loadMesas();
       })
     );
   }

@@ -165,9 +165,14 @@
 
         <!-- Items agrupados/mergeados -->
         <ul style="list-style: none; padding: 0; margin: 0 0 12px 0;">
-          <li *ngFor="let item of group.items" style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95em;">
-            <span><span style="font-weight: bold; color: #111827;">{{ item.cantidad }}x</span> {{ item.nombre }}</span>
-            <span style="color: #6b7280;">{{ item.precio * item.cantidad | currency }}</span>
+          <li *ngFor="let item of group.items" style="display: flex; flex-direction: column; padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.95em;">
+            <div style="display: flex; justify-content: space-between;">
+              <span><span style="font-weight: bold; color: #111827;">{{ item.cantidad }}x</span> {{ item.nombre }}</span>
+              <span style="color: #6b7280;">{{ item.precio * item.cantidad | currency }}</span>
+            </div>
+            <div *ngIf="item.nota" style="margin-top: 4px; padding: 4px 8px; background: #fff7ed; border-left: 3px solid #f97316; border-radius: 4px; font-size: 0.8em; color: #9a3412; font-style: italic;">
+              📝 Nota: {{ item.nota }}
+            </div>
           </li>
         </ul>
 

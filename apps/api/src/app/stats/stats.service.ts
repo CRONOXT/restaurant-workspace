@@ -20,7 +20,7 @@ export class StatsService {
     // 1. Ventas de hoy
     const ordersToday = await this.prisma.pedido.findMany({
       where: {
-        estado: 'ENTREGADO',
+        estado: { in: ['ENTREGADO', 'PAGADO'] },
         createdAt: { gte: start, lte: end },
         ...baseWhere
       },
@@ -63,7 +63,7 @@ export class StatsService {
 
     // 4. Platos populares
     const recentOrders = await this.prisma.pedido.findMany({
-      where: { estado: 'ENTREGADO', ...baseWhere },
+      where: { estado: { in: ['ENTREGADO', 'PAGADO'] }, ...baseWhere },
       take: 200,
       orderBy: { createdAt: 'desc' }
     });
@@ -93,7 +93,7 @@ export class StatsService {
 
       const dayOrders = await this.prisma.pedido.findMany({
         where: {
-          estado: 'ENTREGADO',
+          estado: { in: ['ENTREGADO', 'PAGADO'] },
           createdAt: { gte: dayStart, lte: dayEnd },
           ...baseWhere
         },

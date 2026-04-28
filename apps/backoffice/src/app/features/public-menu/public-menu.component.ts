@@ -76,9 +76,16 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
 
   // Menú
   activeCategory: string | null = null;
-  carrito: { producto: Producto, cantidad: number }[] = [];
+  carrito: { producto: Producto, cantidad: number, nota?: string }[] = [];
   isCartOpen = false;
   esCompartido = false;
+
+  updateNota(productoId: string, nota: string) {
+    const item = this.carrito.find(i => i.producto.id === productoId);
+    if (item) {
+      item.nota = nota;
+    }
+  }
 
   // Pedidos y cuentas
   pedidosRealizados: Pedido[] = [];
@@ -520,7 +527,8 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
       productoId: item.producto.id,
       nombre: item.producto.nombre,
       precio: item.producto.precio,
-      cantidad: item.cantidad
+      cantidad: item.cantidad,
+      nota: item.nota
     }));
 
     this.pedidosService.crearPedido(

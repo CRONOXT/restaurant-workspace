@@ -14,7 +14,11 @@ export class MesaService {
     return {
       sucursal: true,
       pedidos: {
-        where: { estado: { not: 'ENTREGADO' as const } },
+        where: { 
+          estado: { 
+            notIn: ['PAGADO' as const, 'CANCELADO' as const] 
+          } 
+        },
         orderBy: { createdAt: 'desc' as const },
         include: { comensal: true }
       },
@@ -47,7 +51,7 @@ export class MesaService {
         where,
         skip,
         take: Number(limit),
-        include: { sucursal: true, sesiones: { where: { isActive: true }, include: { comensales: true } } },
+        include: this.mesaIncludes(),
         orderBy: { numero: 'asc' }
       }),
       this.prisma.mesa.count({ where })
@@ -92,9 +96,18 @@ export class MesaService {
     const wasCierreSolicitado = sesionActiva?.cierreSolicitado ?? false;
 
     if (sesionActiva) {
-      await this.prisma.sesion.update({
-        where: { id: sesionActiva.id },
-        data: { isActive: false, closedAt: new Date(), cierreSolicitado: false }
+      await this.prisma.$transaction(async (tx) => {
+        // 1. Cerrar sesión
+        await tx.sesion.update({
+          where: { id: sesionActiva.id },
+          data: { isActive: false, closedAt: new Date(), cierreSolicitado: false }
+        });
+
+        // 2. Marcar pedidos como PAGADO
+        await tx.pedido.updateMany({
+          where: { sesionId: sesionActiva.id },
+          data: { estado: 'PAGADO' }
+        });
       });
     }
 

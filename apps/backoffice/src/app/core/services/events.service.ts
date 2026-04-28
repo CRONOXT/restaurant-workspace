@@ -44,6 +44,15 @@ export class EventsService {
     }
   }
 
+  onReconnect(): Observable<void> {
+    return new Observable(observer => {
+      this.socket.on('connect', () => {
+        this.ngZone.run(() => observer.next());
+      });
+      return () => this.socket.off('connect');
+    });
+  }
+
   onTableOccupied(): Observable<any> {
     return new Observable(observer => {
       this.socket.on('tableOccupied', (data) => {

@@ -243,14 +243,38 @@ export class SesionService {
       throw new NotFoundException('Sesión no encontrada');
     }
 
-    const updated = await this.prisma.sesion.update({
-      where: { id: sesionId },
-      data: {
-        isActive: false,
-        closedAt: new Date(),
-        cierreSolicitado: false,
-      },
-      include: { comensales: true }
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // 1. Cerrar la sesión
+      const s = await tx.sesion.update({
+        where: { id: sesionId },
+        data: {
+          isActive: false,
+          closedAt: new Date(),
+          cierreSolicitado: false,
+        },
+        include: { comensales: true }
+      });
+
+      // 2. Liberar la mesa
+      await tx.mesa.update({
+        where: { id: sesion.mesaId },
+        data: { isOccupied: false }
+      });
+
+      // 3. Marcar todos los pedidos de la sesión como PAGADO
+      await tx.pedido.updateMany({
+        where: { sesionId: sesionId },
+        data: { estado: 'PAGADO' }
+      });
+
+      return s;
+    });
+
+    // Notificar al gateway
+    this.eventsGateway.notifyTableFreed(sesion.mesa.sucursalId, sesion.mesa);
+    this.eventsGateway.notifyCloseApproved(sesion.mesa.sucursalId, {
+      sesionId: sesion.id,
+      mesaId: sesion.mesaId
     });
 
     return updated;
