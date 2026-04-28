@@ -39,7 +39,8 @@ model Sesion {
   mesaId      String
   mesa        Mesa        @relation(fields: [mesaId], references: [id])
   codigo      String      @unique  // Código de 6 dígitos para invitar
-  isActive    Boolean     @default(true)
+  isActive          Boolean     @default(true)
+  cierreSolicitado  Boolean     @default(false)
   comensales  Comensal[]
   pedidos     Pedido[]
   createdAt   DateTime    @default(now())

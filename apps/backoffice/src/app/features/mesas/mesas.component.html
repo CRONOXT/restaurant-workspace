@@ -12,6 +12,34 @@
     <p>No hay mesas configuradas aún.</p>
   </div>
 
+  <!-- Panel de solicitudes de cierre pendientes -->
+  <div *ngIf="pendingCloseRequests.length > 0" style="margin-bottom: 16px;">
+    <div *ngFor="let req of pendingCloseRequests"
+         style="background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b; border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; animation: slideDown 0.3s ease; box-shadow: 0 4px 12px rgba(245,158,11,0.2);">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 1.8rem;">🔔</span>
+        <div>
+          <p style="margin: 0; font-weight: 700; color: #92400e; font-size: 0.95em;">
+            Solicitud de Cierre — Mesa {{ req.mesaNumero }}
+          </p>
+          <p style="margin: 0; color: #b45309; font-size: 0.85em;">
+            {{ req.solicitadoPor }} solicita cerrar la mesa. Verifica que hayan pagado.
+          </p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; flex-shrink: 0;">
+        <button (click)="rejectClose(req)"
+                style="padding: 7px 14px; background: white; color: #92400e; border: 2px solid #f59e0b; border-radius: 8px; font-weight: 600; font-size: 0.85em; cursor: pointer; font-family: inherit;">
+          ✗ Rechazar
+        </button>
+        <button (click)="approveClose(req)"
+                style="padding: 7px 14px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 0.85em; cursor: pointer; font-family: inherit;">
+          ✓ Aprobar Cierre
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="mesas-grid" *ngIf="!loading && mesas.length > 0">
     <div class="mesa-card" *ngFor="let mesa of mesas" [ngClass]="{'inactive': !mesa.isActive}">
       <div class="mesa-header">
@@ -105,7 +133,7 @@
   </div>
 </div>
 
-<!-- Modal Pedidos -->
+<!-- Modal Pedidos (agrupados por comensal) -->
 <div class="modal-backdrop" *ngIf="selectedOrderMesa">
   <div class="modal-content" style="max-width: 600px; width: 95%; max-height: 85vh; overflow-y: auto;">
     <div class="modal-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 15px;">
@@ -114,59 +142,60 @@
     </div>
     
     <div style="padding: 10px 0;">
-      <div *ngFor="let pedido of selectedMesaPedidos; let i = index" 
+      <!-- Grouped cards -->
+      <div *ngFor="let group of groupedPedidos"
            class="pedido-card"
-           [ngClass]="getEstadoClass(pedido.estado)"
+           [ngClass]="getEstadoClass(getGroupEstado(group))"
            style="padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #e5e7eb;">
         
+        <!-- Header: nombre del comensal + estado -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #d1d5db;">
           <div>
-            <span style="font-weight: 600; color: #4b5563; font-size: 0.9em;">
-              {{ pedido.comensal?.nombre || 'Sin asignar' }}
+            <span style="font-weight: 700; color: #1e293b; font-size: 1em;">
+              {{ group.esCompartido ? '🤝' : '🧑' }} {{ group.comensalNombre }}
             </span>
-            <span *ngIf="pedido.esCompartido" style="background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 10px; font-size: 0.7em; font-weight: 600; margin-left: 6px;">
-              🤝 Compartido
-            </span>
-            <span style="font-size: 0.8em; color: #9ca3af; margin-left: 8px;">
-              {{ pedido.createdAt | date:'HH:mm' }}
+            <span style="font-size: 0.8em; color: #94a3b8; margin-left: 6px;">
+              ({{ group.pedidos.length }} pedido{{ group.pedidos.length > 1 ? 's' : '' }})
             </span>
           </div>
-          <span class="estado-badge" [ngClass]="getEstadoClass(pedido.estado)" style="padding: 4px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 600;">
-            {{ getEstadoLabel(pedido.estado) }}
+          <span class="estado-badge" [ngClass]="getEstadoClass(getGroupEstado(group))" style="padding: 4px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 600;">
+            {{ getEstadoLabel(getGroupEstado(group)) }}
           </span>
         </div>
 
+        <!-- Items agrupados/mergeados -->
         <ul style="list-style: none; padding: 0; margin: 0 0 12px 0;">
-          <li *ngFor="let item of pedido.items" style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95em;">
+          <li *ngFor="let item of group.items" style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95em;">
             <span><span style="font-weight: bold; color: #111827;">{{ item.cantidad }}x</span> {{ item.nombre }}</span>
             <span style="color: #6b7280;">{{ item.precio * item.cantidad | currency }}</span>
           </li>
         </ul>
 
+        <!-- Total + acciones de grupo -->
         <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #d1d5db;">
-          <span style="font-weight: 700; font-size: 0.95em;">Total: {{ pedido.total | currency }}</span>
+          <span style="font-weight: 800; font-size: 1.05em; color: #1e293b;">Total: {{ group.total | currency }}</span>
           
           <div style="display: flex; gap: 6px;">
             <button 
-              *ngIf="pedido.estado === 'PENDIENTE'"
-              (click)="cambiarEstadoPedido(pedido, 'ACEPTADO')"
+              *ngIf="hasPendientes(group)"
+              (click)="cambiarEstadoGrupo(group, 'ACEPTADO')"
               style="background: #3b82f6; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8em; font-weight: 600; cursor: pointer;">
-              ✓ Aceptar
+              ✓ Aceptar Todo
             </button>
             <button 
-              *ngIf="pedido.estado === 'ACEPTADO'"
-              (click)="cambiarEstadoPedido(pedido, 'ENTREGADO')"
+              *ngIf="hasAceptados(group)"
+              (click)="cambiarEstadoGrupo(group, 'ENTREGADO')"
               style="background: #10b981; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8em; font-weight: 600; cursor: pointer;">
-              🍽️ Entregado
+              🍽️ Entregar Todo
             </button>
-            <span *ngIf="pedido.estado === 'ENTREGADO'" style="color: #10b981; font-weight: 600; font-size: 0.85em;">
+            <span *ngIf="allEntregados(group)" style="color: #10b981; font-weight: 600; font-size: 0.85em;">
               ✅ Completado
             </span>
           </div>
         </div>
       </div>
       
-      <div *ngIf="selectedMesaPedidos.length === 0" style="text-align: center; color: #6b7280; padding: 20px;">
+      <div *ngIf="groupedPedidos.length === 0" style="text-align: center; color: #6b7280; padding: 20px;">
         No hay pedidos para esta mesa.
       </div>
     </div>

@@ -74,10 +74,12 @@ export class MesaService {
       where: { mesaId: id, isActive: true }
     });
 
+    const wasCierreSolicitado = sesionActiva?.cierreSolicitado ?? false;
+
     if (sesionActiva) {
       await this.prisma.sesion.update({
         where: { id: sesionActiva.id },
-        data: { isActive: false, closedAt: new Date() }
+        data: { isActive: false, closedAt: new Date(), cierreSolicitado: false }
       });
     }
 
@@ -86,7 +88,18 @@ export class MesaService {
       data: { isOccupied: false },
       include: { sucursal: true }
     });
+
     this.eventsGateway.notifyTableFreed(mesa.sucursalId, mesa);
+
+    // Si había solicitud de cierre pendiente, notificar al comensal que fue aprobado
+    if (wasCierreSolicitado && sesionActiva) {
+      this.eventsGateway.notifyCloseApproved(mesa.sucursalId, {
+        sesionId: sesionActiva.id,
+        mesaId: id,
+        mesaNumero: mesa.numero,
+      });
+    }
+
     return mesa;
   }
 

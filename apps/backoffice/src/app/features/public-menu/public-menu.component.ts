@@ -85,6 +85,9 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
   showPedidos = false;
   showMiCuenta = false;
   showInvitar = false;
+  showConfirmCerrar = false;
+  mesaCerrada = false;
+  esperandoAprobacion = false; // líder espera que el camarero apruebe el cierre
   desgloseCuentas: DesgloseCuentas | null = null;
 
   get cartTotal() {
@@ -318,11 +321,39 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
     this.subscriptions.add(
       this.eventsService.onComensalJoined().subscribe((data: any) => {
         if (data.sesionId === this.sesion?.id) {
-          // Agregar nuevo comensal a la lista local
           if (this.sesion && !this.sesion.comensales.find(c => c.id === data.comensal.id)) {
             this.sesion.comensales.push(data.comensal);
           }
           this.uiService.showToast('Nuevo Comensal', `${data.comensal.nombre} se unió a la mesa`, 'info');
+          this.cdr.detectChanges();
+        }
+      })
+    );
+
+    // Camarero aprobó el cierre → cerrar la vista localmente
+    this.subscriptions.add(
+      this.eventsService.onCloseTableApproved().subscribe((data: any) => {
+        if (data.mesaId === this.mesaId || data.sesionId === this.sesion?.id) {
+          localStorage.removeItem(this.TOKEN_KEY);
+          this.mesaCerrada = true;
+          this.esperandoAprobacion = false;
+          this.viewState = 'loading';
+          this.cdr.detectChanges();
+        }
+      })
+    );
+
+    // Camarero rechazó el cierre → notificar al líder
+    this.subscriptions.add(
+      this.eventsService.onCloseTableRejected().subscribe((data: any) => {
+        if (data.mesaId === this.mesaId || data.sesionId === this.sesion?.id) {
+          this.esperandoAprobacion = false;
+          this.uiService.showToast(
+            'Solicitud rechazada',
+            'El camarero rechazó el cierre de mesa. Contacta al camarero si necesitas ayuda.',
+            'error',
+            6000
+          );
           this.cdr.detectChanges();
         }
       })
@@ -510,5 +541,48 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  // --- CERRAR MESA (solo líder) ---
+
+  confirmarCerrarMesa() {
+    this.showConfirmCerrar = true;
+  }
+
+  cancelarCerrar() {
+    this.showConfirmCerrar = false;
+  }
+
+  // El líder NO cierra directamente: envía solicitud al camarero
+  cerrarMesa() {
+    if (!this.sesion?.id) return;
+
+    this.showConfirmCerrar = false;
+    this.loading = true;
+
+    this.sesionesService.solicitarCierre(this.sesion.id).subscribe({
+      next: () => {
+        this.loading = false;
+        this.esperandoAprobacion = true;
+        this.uiService.showToast(
+          'Solicitud enviada',
+          'El camarero fue notificado. Espera su confirmación para cerrar la mesa.',
+          'info',
+          8000
+        );
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loading = false;
+        this.uiService.showToast('Error', 'No se pudo enviar la solicitud', 'error');
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  cancelarSolicitudCierre() {
+    // El líder puede cancelar la solicitud pendiente
+    this.esperandoAprobacion = false;
+    this.cdr.detectChanges();
   }
 }

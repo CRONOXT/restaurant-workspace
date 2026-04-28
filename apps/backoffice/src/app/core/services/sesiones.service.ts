@@ -17,6 +17,7 @@ export interface Sesion {
   mesaId: string;
   codigo: string;
   isActive: boolean;
+  cierreSolicitado: boolean;
   comensales: Comensal[];
   createdAt: string;
   closedAt?: string;
@@ -78,5 +79,13 @@ export class SesionesService {
 
   cerrarSesion(sesionId: string): Observable<Sesion> {
     return this.http.put<Sesion>(`${this.apiUrl}/${sesionId}/cerrar`, {});
+  }
+
+  solicitarCierre(sesionId: string): Observable<{ success: boolean; message: string }> {
+    return this.http.post<any>(`${this.apiUrl}/${sesionId}/solicitar-cierre`, {});
+  }
+
+  rechazarCierre(sesionId: string): Observable<{ success: boolean; message: string }> {
+    return this.http.put<any>(`${this.apiUrl}/${sesionId}/rechazar-cierre`, {});
   }
 }

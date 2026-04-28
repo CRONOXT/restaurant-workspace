@@ -33,6 +33,9 @@ export class MesasComponent implements OnInit, OnDestroy {
   selectedMesaPedidos: Pedido[] = [];
   connectedSucursalId: string | null = null;
 
+  // Solicitudes de cierre pendientes
+  pendingCloseRequests: { sesionId: string; mesaId: string; mesaNumero: number; solicitadoPor: string }[] = [];
+
   // Cuentas modal
   showCuentasModal = false;
   cuentasMesa: DesgloseCuentas | null = null;
@@ -132,6 +135,65 @@ export class MesasComponent implements OnInit, OnDestroy {
         }
       })
     );
+
+    // Recibir solicitud de cierre del líder
+    this.subscriptions.add(
+      this.eventsService.onCloseTableRequested().subscribe((data: any) => {
+        const already = this.pendingCloseRequests.find(r => r.sesionId === data.sesionId);
+        if (!already) {
+          this.pendingCloseRequests.push({
+            sesionId: data.sesionId,
+            mesaId: data.mesaId,
+            mesaNumero: data.mesaNumero,
+            solicitadoPor: data.solicitadoPor,
+          });
+        }
+        this.cdr.detectChanges();
+        this.uiService.showToast(
+          '⚠️ Solicitud de Cierre',
+          `Mesa ${data.mesaNumero}: ${data.solicitadoPor} quiere cerrar la mesa. ¡Revísala!`,
+          'info',
+          0 // no auto-dismiss
+        );
+      })
+    );
+  }
+
+  approveClose(req: { sesionId: string; mesaId: string; mesaNumero: number; solicitadoPor: string }) {
+    // 1. Cerrar la sesión
+    this.sesionesService.cerrarSesion(req.sesionId).subscribe({
+      next: () => {
+        // 2. Liberar la mesa
+        this.mesasService.freeMesa(req.mesaId).subscribe({
+          next: (mesa) => {
+            // Notificar via WS al comensal que fue aprobado
+            // El evento closeTableApproved lo envía el backend al liberar (ya lo hace mesaService.free)
+            // Actualizar la mesa localmente
+            const found = this.mesas.find(m => m.id === req.mesaId);
+            if (found) {
+              found.isOccupied = false;
+              found.pedidosActivos = [];
+              (found as any).sesiones = [];
+            }
+            this.pendingCloseRequests = this.pendingCloseRequests.filter(r => r.sesionId !== req.sesionId);
+            this.uiService.showToast('Mesa Cerrada', `Mesa ${req.mesaNumero} cerrada correctamente ✓`, 'success');
+            this.cdr.detectChanges();
+          }
+        });
+      },
+      error: () => this.uiService.showToast('Error', 'No se pudo cerrar la sesión', 'error')
+    });
+  }
+
+  rejectClose(req: { sesionId: string; mesaId: string; mesaNumero: number; solicitadoPor: string }) {
+    this.sesionesService.rechazarCierre(req.sesionId).subscribe({
+      next: () => {
+        this.pendingCloseRequests = this.pendingCloseRequests.filter(r => r.sesionId !== req.sesionId);
+        this.uiService.showToast('Rechazado', `Solicitud de cierre de Mesa ${req.mesaNumero} rechazada`, 'info');
+        this.cdr.detectChanges();
+      },
+      error: () => this.uiService.showToast('Error', 'No se pudo rechazar la solicitud', 'error')
+    });
   }
 
   loadMesas() {
@@ -176,11 +238,15 @@ export class MesasComponent implements OnInit, OnDestroy {
     this.selectedMesaNumber = null;
   }
 
+  // Agrupación de pedidos por comensal
+  groupedPedidos: PedidoGroup[] = [];
+
   showOrderDetails(mesa: Mesa) {
     this.selectedOrderMesa = mesa;
     this.pedidosService.getPedidosPorMesa(mesa.id).subscribe({
       next: (pedidos) => {
         this.selectedMesaPedidos = pedidos;
+        this.groupedPedidos = this.groupPedidosByComensal(pedidos);
         this.cdr.detectChanges();
       }
     });
@@ -189,6 +255,47 @@ export class MesasComponent implements OnInit, OnDestroy {
   closeOrderDetails() {
     this.selectedOrderMesa = null;
     this.selectedMesaPedidos = [];
+    this.groupedPedidos = [];
+  }
+
+  private groupPedidosByComensal(pedidos: Pedido[]): PedidoGroup[] {
+    const groups: Map<string, PedidoGroup> = new Map();
+
+    for (const pedido of pedidos) {
+      const key = pedido.esCompartido ? '__compartido__' : (pedido.comensalId || '__sin_asignar__');
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          comensalId: pedido.esCompartido ? null : pedido.comensalId || null,
+          comensalNombre: pedido.esCompartido ? '🤝 Compartido' : (pedido.comensal?.nombre || 'Sin asignar'),
+          esCompartido: pedido.esCompartido,
+          pedidos: [],
+          items: [],
+          total: 0,
+        });
+      }
+
+      const group = groups.get(key)!;
+      group.pedidos.push(pedido);
+      group.total += pedido.total;
+
+      // Merge items
+      for (const item of (pedido.items as any[])) {
+        const existing = group.items.find(i => i.nombre === item.nombre && i.precio === item.precio);
+        if (existing) {
+          existing.cantidad += item.cantidad;
+        } else {
+          group.items.push({ ...item });
+        }
+      }
+    }
+
+    // Ordenar: compartidos al final
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.esCompartido && !b.esCompartido) return 1;
+      if (!a.esCompartido && b.esCompartido) return -1;
+      return 0;
+    });
   }
 
   showCuentas(mesa: Mesa) {
@@ -231,6 +338,52 @@ export class MesasComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Cambiar estado de todos los pedidos de un grupo a la vez
+  cambiarEstadoGrupo(group: PedidoGroup, nuevoEstado: EstadoPedido) {
+    const pedidosToUpdate = group.pedidos.filter(p => {
+      if (nuevoEstado === 'ACEPTADO') return p.estado === 'PENDIENTE';
+      if (nuevoEstado === 'ENTREGADO') return p.estado === 'ACEPTADO';
+      return false;
+    });
+
+    if (pedidosToUpdate.length === 0) return;
+
+    let completed = 0;
+    for (const pedido of pedidosToUpdate) {
+      this.pedidosService.actualizarEstado(pedido.id, nuevoEstado).subscribe({
+        next: (updated) => {
+          pedido.estado = updated.estado;
+          completed++;
+          if (completed === pedidosToUpdate.length) {
+            const msg = nuevoEstado === 'ACEPTADO'
+              ? `${completed} pedido(s) aceptado(s) ✓`
+              : `${completed} pedido(s) entregado(s) ✓`;
+            this.uiService.showToast('Estado Actualizado', msg, 'success');
+            this.cdr.detectChanges();
+          }
+        }
+      });
+    }
+  }
+
+  getGroupEstado(group: PedidoGroup): EstadoPedido | 'MIXTO' {
+    const estados = new Set(group.pedidos.map(p => p.estado));
+    if (estados.size === 1) return group.pedidos[0].estado;
+    return 'MIXTO';
+  }
+
+  hasPendientes(group: PedidoGroup): boolean {
+    return group.pedidos.some(p => p.estado === 'PENDIENTE');
+  }
+
+  hasAceptados(group: PedidoGroup): boolean {
+    return group.pedidos.some(p => p.estado === 'ACEPTADO');
+  }
+
+  allEntregados(group: PedidoGroup): boolean {
+    return group.pedidos.every(p => p.estado === 'ENTREGADO');
+  }
+
   getPedidoCount(mesa: Mesa): number {
     return mesa.pedidosActivos ? mesa.pedidosActivos.length : 0;
   }
@@ -248,21 +401,32 @@ export class MesasComponent implements OnInit, OnDestroy {
     return (mesa as any).sesiones?.[0]?.codigo || '';
   }
 
-  getEstadoLabel(estado: EstadoPedido): string {
+  getEstadoLabel(estado: EstadoPedido | string): string {
     switch (estado) {
       case 'PENDIENTE': return '⏳ Pendiente';
       case 'ACEPTADO': return '👨‍🍳 En preparación';
       case 'ENTREGADO': return '✅ Entregado';
+      case 'MIXTO': return '⚡ Mixto';
       default: return estado;
     }
   }
 
-  getEstadoClass(estado: EstadoPedido): string {
+  getEstadoClass(estado: EstadoPedido | string): string {
     switch (estado) {
       case 'PENDIENTE': return 'estado-pendiente';
       case 'ACEPTADO': return 'estado-aceptado';
       case 'ENTREGADO': return 'estado-entregado';
+      case 'MIXTO': return 'estado-aceptado';
       default: return '';
     }
   }
+}
+
+export interface PedidoGroup {
+  comensalId: string | null;
+  comensalNombre: string;
+  esCompartido: boolean;
+  pedidos: Pedido[];
+  items: any[];
+  total: number;
 }

@@ -88,4 +88,31 @@ export class EventsService {
       return () => this.socket.off('comensalJoined');
     });
   }
+
+  onCloseTableRequested(): Observable<any> {
+    return new Observable(observer => {
+      this.socket.on('closeTableRequested', (data) => {
+        this.ngZone.run(() => observer.next(data));
+      });
+      return () => this.socket.off('closeTableRequested');
+    });
+  }
+
+  onCloseTableApproved(): Observable<any> {
+    return new Observable(observer => {
+      this.socket.on('closeTableApproved', (data) => {
+        this.ngZone.run(() => observer.next(data));
+      });
+      return () => this.socket.off('closeTableApproved');
+    });
+  }
+
+  onCloseTableRejected(): Observable<any> {
+    return new Observable(observer => {
+      this.socket.on('closeTableRejected', (data) => {
+        this.ngZone.run(() => observer.next(data));
+      });
+      return () => this.socket.off('closeTableRejected');
+    });
+  }
 }

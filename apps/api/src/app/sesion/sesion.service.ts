@@ -248,10 +248,72 @@ export class SesionService {
       data: {
         isActive: false,
         closedAt: new Date(),
+        cierreSolicitado: false,
       },
       include: { comensales: true }
     });
 
     return updated;
+  }
+
+  async solicitarCierre(sesionId: string) {
+    const sesion = await this.prisma.sesion.findUnique({
+      where: { id: sesionId },
+      include: {
+        mesa: { include: { sucursal: true } },
+        comensales: true
+      }
+    });
+
+    if (!sesion) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
+
+    if (!sesion.isActive) {
+      throw new BadRequestException('Esta sesión ya no está activa');
+    }
+
+    await this.prisma.sesion.update({
+      where: { id: sesionId },
+      data: { cierreSolicitado: true }
+    });
+
+    // Notificar al camarero
+    const lider = sesion.comensales.find(c => c.esLider);
+    this.eventsGateway.notifyCloseRequested(sesion.mesa.sucursalId, {
+      sesionId: sesion.id,
+      mesaId: sesion.mesaId,
+      mesaNumero: sesion.mesa.numero,
+      solicitadoPor: lider?.nombre || 'Líder',
+    });
+
+    return { success: true, message: 'Solicitud de cierre enviada al camarero' };
+  }
+
+  async rechazarCierre(sesionId: string) {
+    const sesion = await this.prisma.sesion.findUnique({
+      where: { id: sesionId },
+      include: {
+        mesa: { include: { sucursal: true } },
+      }
+    });
+
+    if (!sesion) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
+
+    await this.prisma.sesion.update({
+      where: { id: sesionId },
+      data: { cierreSolicitado: false }
+    });
+
+    // Notificar al comensal que fue rechazado
+    this.eventsGateway.notifyCloseRejected(sesion.mesa.sucursalId, {
+      sesionId: sesion.id,
+      mesaId: sesion.mesaId,
+      mesaNumero: sesion.mesa.numero,
+    });
+
+    return { success: true, message: 'Solicitud de cierre rechazada' };
   }
 }

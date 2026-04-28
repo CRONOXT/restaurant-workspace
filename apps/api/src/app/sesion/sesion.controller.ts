@@ -48,4 +48,16 @@ export class SesionController {
   cerrar(@Param('id') id: string) {
     return this.sesionService.cerrar(id);
   }
+
+  @Post(':id/solicitar-cierre')
+  @ApiOperation({ summary: 'Líder solicita cierre de mesa (requiere aprobación del camarero)' })
+  solicitarCierre(@Param('id') id: string) {
+    return this.sesionService.solicitarCierre(id);
+  }
+
+  @Put(':id/rechazar-cierre')
+  @ApiOperation({ summary: 'Camarero rechaza solicitud de cierre' })
+  rechazarCierre(@Param('id') id: string) {
+    return this.sesionService.rechazarCierre(id);
+  }
 }

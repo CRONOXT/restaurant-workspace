@@ -60,4 +60,16 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   notifyComensalJoined(sucursalId: string, data: any) {
     this.server.to(`sucursal_${sucursalId}`).emit('comensalJoined', data);
   }
+
+  notifyCloseRequested(sucursalId: string, data: any) {
+    this.server.to(`sucursal_${sucursalId}`).emit('closeTableRequested', data);
+  }
+
+  notifyCloseApproved(sucursalId: string, data: any) {
+    this.server.to(`sucursal_${sucursalId}`).emit('closeTableApproved', data);
+  }
+
+  notifyCloseRejected(sucursalId: string, data: any) {
+    this.server.to(`sucursal_${sucursalId}`).emit('closeTableRejected', data);
+  }
 }
