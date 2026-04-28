@@ -41,9 +41,10 @@
           <td>
             <span class="badge" 
                   [class.badge-admin]="item.rol === 'ADMIN'"
+                  [class.badge-admin-empresa]="item.rol === 'ADMIN_EMPRESA'"
                   [class.badge-gerente]="item.rol === 'GERENTE'"
                   [class.badge-camarero]="item.rol === 'CAMARERO'">
-              {{ item.rol }}
+              {{ formatRol(item.rol) }}
             </span>
           </td>
           <td>{{ getSucursalName(item.sucursalId) }}</td>
@@ -114,7 +115,8 @@
       <div class="form-group">
         <label>Rol</label>
         <select [(ngModel)]="currentUsuario.rol" class="form-control">
-          <option value="ADMIN">Administrador</option>
+          <option value="ADMIN">Super Admin</option>
+          <option value="ADMIN_EMPRESA">Admin Empresa</option>
           <option value="GERENTE">Gerente</option>
           <option value="CAMARERO">Camarero</option>
         </select>

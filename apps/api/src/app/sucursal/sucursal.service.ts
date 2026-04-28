@@ -22,14 +22,17 @@ export class SucursalService {
     return this.prisma.sucursal.create({ data });
   }
 
-  async findAll(search?: string, page = 1, limit = 10): Promise<{ data: Sucursal[], total: number }> {
+  async findAll(empresaId?: string, search?: string, page = 1, limit = 10): Promise<{ data: Sucursal[], total: number }> {
     const skip = (page - 1) * limit;
-    const where: Prisma.SucursalWhereInput = search ? {
-      OR: [
-        { nombre: { contains: search, mode: 'insensitive' } },
-        { direccion: { contains: search, mode: 'insensitive' } },
-      ]
-    } : {};
+    const where: Prisma.SucursalWhereInput = {
+      empresaId: empresaId || undefined,
+      ...(search ? {
+        OR: [
+          { nombre: { contains: search, mode: 'insensitive' } },
+          { direccion: { contains: search, mode: 'insensitive' } },
+        ]
+      } : {})
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.sucursal.findMany({

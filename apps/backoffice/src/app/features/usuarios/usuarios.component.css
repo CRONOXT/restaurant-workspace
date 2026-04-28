@@ -21,6 +21,7 @@
 }
 
 .badge-admin { background-color: #fef3c7; color: #92400e; }
+.badge-admin-empresa { background-color: #f3e8ff; color: #6b21a8; } /* Purple/Violet */
 .badge-gerente { background-color: #e0e7ff; color: #3730a3; }
 .badge-camarero { background-color: #f3f4f6; color: #4b5563; }
 

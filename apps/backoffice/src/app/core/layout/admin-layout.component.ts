@@ -16,10 +16,10 @@ export class AdminLayoutComponent implements OnInit {
   
   allMenuItems = [
     { label: 'Dashboard', icon: 'bi bi-house-door', route: '/dashboard' },
-    { label: 'Sucursales', icon: 'bi bi-building', route: '/sucursales', roles: ['ADMIN', 'GERENTE'] },
-    { label: 'Mesas', icon: 'bi bi-grid-3x3-gap', route: '/mesas', roles: ['CAMARERO', 'GERENTE'] },
-    { label: 'Menús', icon: 'bi bi-journal-text', route: '/menus', roles: ['ADMIN', 'GERENTE'] },
-    { label: 'Usuarios', icon: 'bi bi-people', route: '/usuarios', roles: ['ADMIN', 'GERENTE'] },
+    { label: 'Sucursales', icon: 'bi bi-building', route: '/sucursales', roles: ['ADMIN', 'ADMIN_EMPRESA', 'GERENTE'] },
+    { label: 'Mesas', icon: 'bi bi-grid-3x3-gap', route: '/mesas', roles: ['ADMIN', 'ADMIN_EMPRESA', 'CAMARERO', 'GERENTE'] },
+    { label: 'Menús', icon: 'bi bi-journal-text', route: '/menus', roles: ['ADMIN', 'ADMIN_EMPRESA', 'GERENTE'] },
+    { label: 'Usuarios', icon: 'bi bi-people', route: '/usuarios', roles: ['ADMIN', 'ADMIN_EMPRESA', 'GERENTE'] },
   ];
 
   menuItems: any[] = [];

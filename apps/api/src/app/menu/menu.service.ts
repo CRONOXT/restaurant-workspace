@@ -10,14 +10,17 @@ export class MenuService {
     return this.prisma.menu.create({ data });
   }
 
-  async findAll(search?: string, page = 1, limit = 10): Promise<{ data: Menu[], total: number }> {
+  async findAll(empresaId?: string, search?: string, page = 1, limit = 10): Promise<{ data: Menu[], total: number }> {
     const skip = (page - 1) * limit;
-    const where: Prisma.MenuWhereInput = search ? {
-      OR: [
-        { nombre: { contains: search, mode: 'insensitive' } },
-        { moneda: { contains: search, mode: 'insensitive' } },
-      ]
-    } : {};
+    const where: Prisma.MenuWhereInput = {
+      sucursal: empresaId ? { empresaId } : undefined,
+      ...(search ? {
+        OR: [
+          { nombre: { contains: search, mode: 'insensitive' } },
+          { moneda: { contains: search, mode: 'insensitive' } },
+        ]
+      } : {})
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.menu.findMany({

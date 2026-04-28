@@ -8,7 +8,7 @@ export interface Usuario {
   email: string;
   password?: string;
   nombre: string;
-  rol: 'ADMIN' | 'GERENTE' | 'CAMARERO';
+  rol: 'ADMIN' | 'ADMIN_EMPRESA' | 'GERENTE' | 'CAMARERO';
   sucursalId?: string;
   isActive?: boolean;
 }

@@ -1,16 +1,24 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Query, UseGuards, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { SucursalService } from './sucursal.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, Rol } from '@prisma/client';
+import { AuthGuard } from '../auth/auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 
 @ApiTags('Sucursal')
 @Controller('sucursal')
+@UseGuards(AuthGuard)
 export class SucursalController {
   constructor(private readonly sucursalService: SucursalService) {}
 
   @Post()
-  create(@Body() createSucursalDto: Prisma.SucursalCreateInput) {
-    return this.sucursalService.create(createSucursalDto);
+  create(@Body() data: Prisma.SucursalCreateInput, @CurrentUser() user: any) {
+    // Si no es SuperAdmin, forzar que la sucursal pertenezca a su empresa
+    if (user.rol !== Rol.ADMIN) {
+      if (!user.empresaId) throw new ForbiddenException('No tienes una empresa asociada');
+      (data as any).empresa = { connect: { id: user.empresaId } };
+    }
+    return this.sucursalService.create(data);
   }
 
   @Get()
@@ -18,22 +26,43 @@ export class SucursalController {
     @Query('search') search?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @CurrentUser() user?: any
   ) {
-    return this.sucursalService.findAll(search, page, limit);
+    // Si es SuperAdmin ve todo, si no, solo lo de su empresa
+    const empresaId = user.rol === Rol.ADMIN ? undefined : user.empresaId;
+    return this.sucursalService.findAll(empresaId, search, page, limit);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.sucursalService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const sucursal = await this.sucursalService.findOne(id);
+    if (!sucursal) return null;
+
+    if (user.rol !== Rol.ADMIN && sucursal.empresaId !== user.empresaId) {
+      throw new ForbiddenException('No tienes permiso para ver esta sucursal');
+    }
+    return sucursal;
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateSucursalDto: Prisma.SucursalUpdateInput) {
-    return this.sucursalService.update(id, updateSucursalDto);
+  async update(@Param('id') id: string, @Body() data: Prisma.SucursalUpdateInput, @CurrentUser() user: any) {
+    const sucursal = await this.sucursalService.findOne(id);
+    if (!sucursal) return null;
+
+    if (user.rol !== Rol.ADMIN && sucursal.empresaId !== user.empresaId) {
+      throw new ForbiddenException('No puedes editar esta sucursal');
+    }
+    return this.sucursalService.update(id, data);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const sucursal = await this.sucursalService.findOne(id);
+    if (!sucursal) return null;
+
+    if (user.rol !== Rol.ADMIN && sucursal.empresaId !== user.empresaId) {
+      throw new ForbiddenException('No puedes eliminar esta sucursal');
+    }
     return this.sucursalService.remove(id);
   }
 }

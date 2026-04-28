@@ -17,14 +17,17 @@ export class UsuarioService {
     });
   }
 
-  async findAll(search?: string, page = 1, limit = 10): Promise<{ data: Omit<Usuario, 'password'>[], total: number }> {
+  async findAll(empresaId?: string, search?: string, page = 1, limit = 10): Promise<{ data: Omit<Usuario, 'password'>[], total: number }> {
     const skip = (page - 1) * limit;
-    const where: Prisma.UsuarioWhereInput = search ? {
-      OR: [
-        { nombre: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-      ]
-    } : {};
+    const where: Prisma.UsuarioWhereInput = {
+      empresaId: empresaId || undefined,
+      ...(search ? {
+        OR: [
+          { nombre: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ]
+      } : {})
+    };
 
     const [usuarios, total] = await Promise.all([
       this.prisma.usuario.findMany({

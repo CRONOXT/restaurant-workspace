@@ -1,10 +1,13 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Query, UseGuards, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { MesaService } from './mesa.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, Rol } from '@prisma/client';
+import { AuthGuard } from '../auth/auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 
 @ApiTags('Mesa')
 @Controller('mesa')
+@UseGuards(AuthGuard)
 export class MesaController {
   constructor(private readonly mesaService: MesaService) {}
 
@@ -20,13 +23,21 @@ export class MesaController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sucursalId') sucursalId?: string,
+    @CurrentUser() user?: any,
   ) {
-    return this.mesaService.findAll(search, page, limit, sucursalId);
+    const empresaId = user?.rol === Rol.ADMIN ? undefined : user?.empresaId;
+    return this.mesaService.findAll(search, page, limit, sucursalId, empresaId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.mesaService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const mesa = await this.mesaService.findOne(id);
+    if (!mesa) return null;
+
+    if (user.rol !== Rol.ADMIN && (mesa as any).sucursal.empresaId !== user.empresaId) {
+      throw new ForbiddenException('No tienes permiso para ver esta mesa');
+    }
+    return mesa;
   }
 
   @Put(':id/occupy')
@@ -42,13 +53,24 @@ export class MesaController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateMesaDto: Prisma.MesaUpdateInput) {
+  async update(@Param('id') id: string, @Body() updateMesaDto: Prisma.MesaUpdateInput, @CurrentUser() user: any) {
+    const mesa = await this.mesaService.findOne(id);
+    if (!mesa) return null;
+
+    if (user.rol !== Rol.ADMIN && (mesa as any).sucursal.empresaId !== user.empresaId) {
+      throw new ForbiddenException('No puedes editar esta mesa');
+    }
     return this.mesaService.update(id, updateMesaDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const mesa = await this.mesaService.findOne(id);
+    if (!mesa) return null;
+
+    if (user.rol !== Rol.ADMIN && (mesa as any).sucursal.empresaId !== user.empresaId) {
+      throw new ForbiddenException('No puedes eliminar esta mesa');
+    }
     return this.mesaService.remove(id);
   }
 }
-

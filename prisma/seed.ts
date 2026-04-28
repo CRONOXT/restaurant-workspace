@@ -9,10 +9,9 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log('🌱 Iniciando la siembra de datos (Seed)...');
+  console.log('🌱 Iniciando la siembra masiva de datos (Seed Multi-tenant)...');
 
-  // 1. Limpiar base de datos (Opcional, pero recomendado para seed limpio)
-  // El orden importa por las relaciones
+  // 1. Limpiar base de datos
   await prisma.pedido.deleteMany();
   await prisma.comensal.deleteMany();
   await prisma.sesion.deleteMany();
@@ -22,117 +21,141 @@ async function main() {
   await prisma.menu.deleteMany();
   await prisma.usuario.deleteMany();
   await prisma.sucursal.deleteMany();
+  await prisma.empresa.deleteMany();
 
   console.log('🧹 Base de datos limpia.');
 
-  // 2. Crear Usuarios
   const hashedPassword = await bcrypt.hash('admin123', 10);
-  
+
+  // 2. Crear Súper Admin (Tú)
   await prisma.usuario.create({
     data: {
-      nombre: 'Gerente General',
-      email: 'gerente@savor.com',
+      nombre: 'Diego Cumares (Súper Admin)',
+      email: 'diego@savor.com',
       password: hashedPassword,
-      rol: Rol.GERENTE,
+      rol: Rol.ADMIN,
       isActive: true,
     },
   });
 
-  await prisma.usuario.create({
-    data: {
-      nombre: 'Camarero Pro',
-      email: 'camarero@savor.com',
-      password: hashedPassword,
-      rol: Rol.CAMARERO,
-      isActive: true,
+  // 3. Definición de Empresas y sus datos
+  const empresasData = [
+    {
+      nombre: 'Savor Corporation',
+      nit: 'J-11111111-1',
+      admin: { email: 'dueno@savor.com', nombre: 'Dueño Savor' },
+      sucursales: [
+        { nombre: 'Savor Las Mercedes', direccion: 'Calle Madrid' },
+        { nombre: 'Savor Los Palos Grandes', direccion: 'Av. Andres Bello' }
+      ]
     },
-  });
-
-  // 3. Crear Sucursales
-  const sucursalesData = [
-    { nombre: 'Savor Gourmet - Las Mercedes', direccion: 'Calle Madrid, Qta. Savor', numeroMesas: 10 },
-    { nombre: 'Savor Express - Sambil', direccion: 'Nivel Feria, Local E-12', numeroMesas: 15 },
-    { nombre: 'Savor Garden - El Hatillo', direccion: 'Calle Bolivar, Casa Nro 4', numeroMesas: 8 },
+    {
+      nombre: 'Burger Master',
+      nit: 'J-22222222-2',
+      admin: { email: 'admin@burgermaster.com', nombre: 'Carlos Burger' },
+      sucursales: [
+        { nombre: 'Burger Master Sambil', direccion: 'Centro Comercial Sambil' },
+        { nombre: 'Burger Master Chacao', direccion: 'Calle Elice' }
+      ]
+    },
+    {
+      nombre: 'Sushi Zen',
+      nit: 'J-33333333-3',
+      admin: { email: 'contacto@sushizen.com', nombre: 'Yuki Tanaka' },
+      sucursales: [
+        { nombre: 'Sushi Zen Hatillo', direccion: 'Pueblo de El Hatillo' }
+      ]
+    }
   ];
 
-  for (const s of sucursalesData) {
-    const sucursal = await prisma.sucursal.create({ data: s });
-
-    // Crear Mesas para cada sucursal
-    for (let i = 1; i <= s.numeroMesas; i++) {
-      await prisma.mesa.create({
-        data: {
-          numero: i,
-          capacidad: i % 2 === 0 ? 4 : 2,
-          sucursalId: sucursal.id,
-          qrCode: `QR-${sucursal.id}-${i}`,
-          isActive: true,
-        },
-      });
-    }
-
-    // Crear Menú para la sucursal
-    const menu = await prisma.menu.create({
-      data: {
-        nombre: `Carta ${s.nombre.split(' - ')[0]}`,
-        sucursalId: sucursal.id,
-        moneda: 'USD',
-        isActive: true,
-      },
+  for (const eData of empresasData) {
+    // Crear Empresa
+    const empresa = await prisma.empresa.create({
+      data: { nombre: eData.nombre, nit: eData.nit }
     });
 
-    // Crear Categorías
-    const categoriasData = [
-      { nombre: 'Entradas', orden: 1 },
-      { nombre: 'Platos Fuertes', orden: 2 },
-      { nombre: 'Bebidas', orden: 3 },
-      { nombre: 'Postres', orden: 4 },
-    ];
+    // Crear Admin de Empresa
+    await prisma.usuario.create({
+      data: {
+        nombre: eData.admin.nombre,
+        email: eData.admin.email,
+        password: hashedPassword,
+        rol: Rol.ADMIN_EMPRESA,
+        empresaId: empresa.id,
+      }
+    });
 
-    for (const cData of categoriasData) {
-      const categoria = await prisma.categoria.create({
+    // Crear Sucursales y sus empleados
+    for (const sData of eData.sucursales) {
+      const sucursal = await prisma.sucursal.create({
         data: {
-          ...cData,
-          menuId: menu.id,
-        },
+          nombre: sData.nombre,
+          direccion: sData.direccion,
+          empresaId: empresa.id,
+          numeroMesas: 5
+        }
       });
 
-      // Crear Productos por categoría
-      if (cData.nombre === 'Entradas') {
-        await prisma.producto.createMany({
-          data: [
-            { nombre: 'Tequeños Tradicionales', descripcion: '6 unidades con salsa tártara', precio: 6.5, categoriaId: categoria.id, disponible: true },
-            { nombre: 'Ceviche de la Casa', descripcion: 'Pescado blanco marinado en limón', precio: 12.0, categoriaId: categoria.id, disponible: true },
-          ],
-        });
-      } else if (cData.nombre === 'Platos Fuertes') {
-        await prisma.producto.createMany({
-          data: [
-            { nombre: 'Hamburguesa Savor', descripcion: '200g carne, queso cheddar, tocino y cebolla caramelizada', precio: 14.0, categoriaId: categoria.id, disponible: true },
-            { nombre: 'Pasta Carbonara', descripcion: 'Receta original con guanciale y pecorino', precio: 13.5, categoriaId: categoria.id, disponible: true },
-            { nombre: 'Ribeye a la Parrilla', descripcion: '400g de carne premium con acompañante', precio: 22.0, categoriaId: categoria.id, disponible: true },
-          ],
-        });
-      } else if (cData.nombre === 'Bebidas') {
-        await prisma.producto.createMany({
-          data: [
-            { nombre: 'Limonada Frappé', descripcion: 'Refrescante con hierbabuena', precio: 3.5, categoriaId: categoria.id, disponible: true },
-            { nombre: 'Cerveza Artesanal', descripcion: 'Tipo IPA local', precio: 5.0, categoriaId: categoria.id, disponible: true },
-            { nombre: 'Copa de Vino Tinto', descripcion: 'Cabernet Sauvignon', precio: 7.0, categoriaId: categoria.id, disponible: true },
-          ],
-        });
-      } else if (cData.nombre === 'Postres') {
-        await prisma.producto.createMany({
-          data: [
-            { nombre: 'Brownie con Helado', descripcion: 'Chocolate oscuro y helado de vainilla', precio: 6.0, categoriaId: categoria.id, disponible: true },
-            { nombre: 'Quesillo Casero', descripcion: 'El clásico venezolano', precio: 4.5, categoriaId: categoria.id, disponible: true },
-          ],
+      // Crear Gerente de Sucursal
+      await prisma.usuario.create({
+        data: {
+          nombre: `Gerente ${sData.nombre}`,
+          email: `gerente.${sucursal.id.substring(0,4)}@${eData.admin.email.split('@')[1]}`,
+          password: hashedPassword,
+          rol: Rol.GERENTE,
+          empresaId: empresa.id,
+          sucursalId: sucursal.id
+        }
+      });
+
+      // Crear 2 Camareros
+      for (let i = 1; i <= 2; i++) {
+        await prisma.usuario.create({
+          data: {
+            nombre: `Camarero ${i} ${sData.nombre}`,
+            email: `camarero${i}.${sucursal.id.substring(0,4)}@${eData.admin.email.split('@')[1]}`,
+            password: hashedPassword,
+            rol: Rol.CAMARERO,
+            empresaId: empresa.id,
+            sucursalId: sucursal.id
+          }
         });
       }
+
+      // Crear 5 Mesas
+      for (let m = 1; m <= 5; m++) {
+        await prisma.mesa.create({
+          data: {
+            numero: m,
+            sucursalId: sucursal.id,
+            qrCode: `QR-${sucursal.id}-${m}`
+          }
+        });
+      }
+
+      // Crear Menú
+      const menu = await prisma.menu.create({
+        data: {
+          nombre: `Menú ${sData.nombre}`,
+          sucursalId: sucursal.id,
+          moneda: 'USD'
+        }
+      });
+
+      const cat = await prisma.categoria.create({
+        data: { nombre: 'Especialidades', menuId: menu.id, orden: 1 }
+      });
+
+      await prisma.producto.createMany({
+        data: [
+          { nombre: `Plato Estrella ${eData.nombre}`, precio: 15, categoriaId: cat.id },
+          { nombre: `Bebida de la Casa`, precio: 5, categoriaId: cat.id }
+        ]
+      });
     }
   }
 
-  console.log('✅ Siembra completada con éxito.');
+  console.log('✅ Siembra masiva completada con éxito.');
 }
 
 main()

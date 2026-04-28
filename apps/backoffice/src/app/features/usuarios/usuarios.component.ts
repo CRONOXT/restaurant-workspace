@@ -99,6 +99,11 @@ export class UsuariosComponent implements OnInit {
     return s ? s.nombre : 'Desconocida';
   }
 
+  formatRol(rol: string): string {
+    if (!rol) return '';
+    return rol.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  }
+
   openCreateModal() {
     this.isEditing = false;
     this.currentUsuario = { nombre: '', email: '', password: '', rol: 'CAMARERO', sucursalId: '', isActive: true };

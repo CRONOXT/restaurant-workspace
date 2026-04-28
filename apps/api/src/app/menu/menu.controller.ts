@@ -1,16 +1,19 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Query, UseGuards, ForbiddenException } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { MenuService } from './menu.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, Rol } from '@prisma/client';
+import { AuthGuard } from '../auth/auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 
 @ApiTags('Menu')
 @Controller('menu')
+@UseGuards(AuthGuard)
 export class MenuController {
   constructor(private readonly menuService: MenuService) {}
 
   @Post()
-  create(@Body() createMenuDto: Prisma.MenuCreateInput) {
-    return this.menuService.create(createMenuDto);
+  create(@Body() data: Prisma.MenuCreateInput) {
+    return this.menuService.create(data);
   }
 
   @Get()
@@ -18,22 +21,42 @@ export class MenuController {
     @Query('search') search?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @CurrentUser() user?: any
   ) {
-    return this.menuService.findAll(search, page, limit);
+    const empresaId = user.rol === Rol.ADMIN ? undefined : user.empresaId;
+    return this.menuService.findAll(empresaId, search, page, limit);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.menuService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    const menu = await this.menuService.findOne(id);
+    if (!menu) return null;
+
+    if (user.rol !== Rol.ADMIN && (menu as any).sucursal.empresaId !== user.empresaId) {
+      throw new ForbiddenException('No tienes permiso para ver este menú');
+    }
+    return menu;
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateMenuDto: Prisma.MenuUpdateInput) {
-    return this.menuService.update(id, updateMenuDto);
+  async update(@Param('id') id: string, @Body() data: Prisma.MenuUpdateInput, @CurrentUser() user: any) {
+    const menu = await this.menuService.findOne(id);
+    if (!menu) return null;
+
+    if (user.rol !== Rol.ADMIN && (menu as any).sucursal.empresaId !== user.empresaId) {
+      throw new ForbiddenException('No puedes editar este menú');
+    }
+    return this.menuService.update(id, data);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @CurrentUser() user: any) {
+    const menu = await this.menuService.findOne(id);
+    if (!menu) return null;
+
+    if (user.rol !== Rol.ADMIN && (menu as any).sucursal.empresaId !== user.empresaId) {
+      throw new ForbiddenException('No puedes eliminar este menú');
+    }
     return this.menuService.remove(id);
   }
 }

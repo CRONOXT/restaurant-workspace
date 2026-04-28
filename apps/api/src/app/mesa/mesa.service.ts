@@ -30,10 +30,11 @@ export class MesaService {
     return this.prisma.mesa.create({ data });
   }
 
-  async findAll(search?: string, page = 1, limit = 50, sucursalId?: string): Promise<{ data: Mesa[], total: number }> {
+  async findAll(search?: string, page = 1, limit = 50, sucursalId?: string, empresaId?: string): Promise<{ data: Mesa[], total: number }> {
     const skip = (page - 1) * limit;
     const where: Prisma.MesaWhereInput = {
       sucursalId: sucursalId || undefined,
+      sucursal: empresaId ? { empresaId } : undefined,
       ...(search ? {
         OR: [
           { numero: { equals: isNaN(Number(search)) ? undefined : Number(search) } }
