@@ -1,0 +1,97 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { startOfDay, endOfDay, subDays, format } from 'date-fns';
+
+@Injectable()
+export class StatsService {
+  constructor(private prisma: PrismaService) {}
+
+  async getDashboardStats(sucursalId?: string) {
+    const today = new Date();
+    const start = startOfDay(today);
+    const end = endOfDay(today);
+
+    // 1. Ventas de hoy
+    const ordersToday = await this.prisma.pedido.findMany({
+      where: {
+        estado: 'ENTREGADO',
+        createdAt: { gte: start, lte: end },
+        ...(sucursalId && { mesa: { sucursalId } })
+      },
+      select: { total: true }
+    });
+    const ventasHoy = ordersToday.reduce((sum, o) => sum + o.total, 0);
+
+    // 2. Pedidos en curso (Pendientes o Aceptados)
+    const pedidosEnCurso = await this.prisma.pedido.count({
+      where: {
+        estado: { in: ['PENDIENTE', 'ACEPTADO'] },
+        ...(sucursalId && { mesa: { sucursalId } })
+      }
+    });
+
+    // 3. Mesas ocupadas
+    const mesasTotales = await this.prisma.mesa.count({
+      where: { isActive: true, ...(sucursalId && { sucursalId }) }
+    });
+    const mesasOcupadas = await this.prisma.mesa.count({
+      where: { isActive: true, isOccupied: true, ...(sucursalId && { sucursalId }) }
+    });
+
+    // 4. Platos populares (Top 5)
+    // Nota: Como los items están en JSON, esto es un poco más complejo en Prisma directo sin SQL Raw
+    // pero podemos obtener los últimos 100 pedidos y agrupar en memoria para prototipo rápido
+    const recentOrders = await this.prisma.pedido.findMany({
+      where: { estado: 'ENTREGADO', ...(sucursalId && { mesa: { sucursalId } }) },
+      take: 200,
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const productsMap: Record<string, { nombre: string; cantidad: number; total: number }> = {};
+    recentOrders.forEach(order => {
+      const items = order.items as any[];
+      items.forEach(item => {
+        if (!productsMap[item.nombre]) {
+          productsMap[item.nombre] = { nombre: item.nombre, cantidad: 0, total: 0 };
+        }
+        productsMap[item.nombre].cantidad += item.cantidad;
+        productsMap[item.nombre].total += item.precio * item.cantidad;
+      });
+    });
+
+    const platosPopulares = Object.values(productsMap)
+      .sort((a, b) => b.cantidad - a.cantidad)
+      .slice(0, 5);
+
+    // 5. Ventas últimos 7 días
+    const ventasUltimaSemana = [];
+    for (let i = 6; i >= 0; i--) {
+      const day = subDays(today, i);
+      const dayStart = startOfDay(day);
+      const dayEnd = endOfDay(day);
+
+      const dayOrders = await this.prisma.pedido.findMany({
+        where: {
+          estado: 'ENTREGADO',
+          createdAt: { gte: dayStart, lte: dayEnd },
+          ...(sucursalId && { mesa: { sucursalId } })
+        },
+        select: { total: true }
+      });
+
+      ventasUltimaSemana.push({
+        fecha: format(day, 'dd/MM'),
+        total: dayOrders.reduce((sum, o) => sum + o.total, 0)
+      });
+    }
+
+    return {
+      ventasHoy,
+      pedidosEnCurso,
+      mesasOcupadas,
+      mesasTotales,
+      platosPopulares,
+      ventasUltimaSemana
+    };
+  }
+}

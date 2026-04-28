@@ -12,6 +12,7 @@ import { ProductoModule } from './producto/producto.module';
 import { EventsModule } from './events/events.module';
 import { PedidoModule } from './pedido/pedido.module';
 import { SesionModule } from './sesion/sesion.module';
+import { StatsModule } from './stats/stats.module';
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { SesionModule } from './sesion/sesion.module';
     ProductoModule,
     EventsModule,
     PedidoModule,
-    SesionModule
+    SesionModule,
+    StatsModule
   ],
   controllers: [AppController],
   providers: [AppService],
