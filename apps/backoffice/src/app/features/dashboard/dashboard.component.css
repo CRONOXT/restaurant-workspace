@@ -50,9 +50,17 @@
 .stat-icon.occupation { background: #fef3c7; color: #d97706; }
 .stat-icon.orders { background: #d1fae5; color: #047857; }
 .stat-icon.yield { background: #f1f5f9; color: #475569; }
+.stat-icon.clients { background: #f3e8ff; color: #7e22ce; }
+.stat-icon.branches { background: #e0f2fe; color: #0369a1; }
 
 .stat-details {
   flex: 1;
+}
+
+.stat-sublabel {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 2px 0 0;
 }
 
 .stat-label {

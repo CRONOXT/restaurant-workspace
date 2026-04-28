@@ -23,14 +23,21 @@
     <!-- Topbar -->
     <header class="topbar">
       <div class="topbar-search">
-        <input type="text" placeholder="Buscar...">
+        <i class="bi bi-search"></i>
+        <input type="text" placeholder="Buscar en Savor...">
       </div>
       <div class="topbar-actions">
         <div class="user-profile" *ngIf="authService.currentUser$ | async as user">
-          <span class="user-name">{{ user.nombre }} ({{ user.rol }})</span>
+          <div class="user-info">
+            <span class="user-name">{{ user.nombre }}</span>
+            <span class="user-role">{{ formatRol(user.rol) }}</span>
+          </div>
           <div class="avatar">{{ user.nombre.charAt(0) }}</div>
         </div>
-        <button class="btn-logout" (click)="logout()">Salir</button>
+        <div class="divider"></div>
+        <button class="btn-logout-icon" (click)="logout()" title="Cerrar Sesión">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
       </div>
     </header>
 

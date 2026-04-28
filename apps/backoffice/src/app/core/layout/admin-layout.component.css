@@ -102,20 +102,37 @@
 /* Topbar */
 .topbar {
   height: 64px;
-  background: white;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.topbar-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.topbar-search i {
+  position: absolute;
+  left: 1rem;
+  color: var(--text-muted);
 }
 
 .topbar-search input {
   background: var(--secondary);
   border: 1px solid transparent;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-md);
-  width: 300px;
+  padding: 0.6rem 1rem 0.6rem 2.5rem;
+  border-radius: 12px;
+  width: 350px;
+  font-size: 0.875rem;
   transition: var(--transition);
 }
 
@@ -123,38 +140,83 @@
   background: white;
   border-color: var(--primary);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
 }
 
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 12px;
+  transition: var(--transition);
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .user-name {
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-main);
+  line-height: 1.2;
+}
+
+.user-role {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--primary);
+  opacity: 0.8;
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
-  background: var(--primary);
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--primary), #059669);
   color: white;
-  border-radius: 50%;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  text-transform: uppercase;
+  font-size: 1.1rem;
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2);
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--border);
+  margin: 0 0.5rem;
+}
+
+.btn-logout-icon {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: #ef4444;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-logout-icon:hover {
+  background-color: #fef2f2;
+  transform: translateY(-1px);
 }
 
 /* Content */

@@ -28,31 +28,46 @@
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem 1.5rem;
+  gap: 1.25rem 1.5rem;
+  padding: 0.5rem;
 }
 
 .full-width {
   grid-column: 1 / -1;
 }
 
-.form-input {
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.form-control {
   width: 100%; 
   padding: 0.75rem 1rem; 
-  border: 1px solid #d1d5db; 
-  border-radius: 8px; 
+  border: 1px solid var(--border); 
+  border-radius: 12px; 
   font-size: 0.875rem;
+  background-color: white;
   box-sizing: border-box; 
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: all 0.2s;
 }
 
-.form-input:focus {
+.form-control:focus {
   outline: none; 
-  border-color: #4f46e5; 
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); 
+  border-color: var(--primary); 
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1); 
 }
 
-.form-input[disabled] {
-  background-color: #f3f4f6;
+.form-control[disabled] {
+  background-color: #f9fafb;
   color: #9ca3af;
   cursor: not-allowed;
 }

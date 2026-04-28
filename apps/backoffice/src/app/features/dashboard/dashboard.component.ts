@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { StatsService, DashboardStats } from '../../core/services/stats.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 
@@ -14,10 +15,12 @@ import { ChartConfiguration, ChartOptions } from 'chart.js';
 })
 export class DashboardComponent implements OnInit {
   private statsService = inject(StatsService);
+  private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
   
   stats: DashboardStats | null = null;
   loading = true;
+  isSuperAdmin = false;
 
   // Configuración Gráfica de Líneas
   public lineChartData: ChartConfiguration<'line'>['data'] = {
@@ -65,6 +68,14 @@ export class DashboardComponent implements OnInit {
   };
 
   ngOnInit() {
+    this.authService.currentUser$.subscribe(user => {
+      this.isSuperAdmin = user?.rol === 'ADMIN';
+      if (this.isSuperAdmin) {
+        this.lineChartData.datasets[0].label = 'Ingresos Plataforma ($)';
+      } else {
+        this.lineChartData.datasets[0].label = 'Ventas del Día ($)';
+      }
+    });
     this.loadStats();
   }
 

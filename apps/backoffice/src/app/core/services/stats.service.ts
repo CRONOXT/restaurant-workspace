@@ -10,6 +10,8 @@ export interface DashboardStats {
   mesasTotales: number;
   platosPopulares: { nombre: string; cantidad: number; total: number }[];
   ventasUltimaSemana: { fecha: string; total: number }[];
+  totalClientes?: number;
+  totalSucursales?: number;
 }
 
 @Injectable({

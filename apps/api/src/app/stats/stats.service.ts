@@ -6,43 +6,64 @@ import { startOfDay, endOfDay, subDays, format } from 'date-fns';
 export class StatsService {
   constructor(private prisma: PrismaService) {}
 
-  async getDashboardStats(sucursalId?: string) {
+  async getDashboardStats(empresaId?: string, sucursalId?: string) {
     const today = new Date();
     const start = startOfDay(today);
     const end = endOfDay(today);
+
+    // Filtro base para multi-tenant
+    const baseWhere = {
+      ...(sucursalId && { mesa: { sucursalId } }),
+      ...(empresaId && { mesa: { sucursal: { empresaId } } })
+    };
 
     // 1. Ventas de hoy
     const ordersToday = await this.prisma.pedido.findMany({
       where: {
         estado: 'ENTREGADO',
         createdAt: { gte: start, lte: end },
-        ...(sucursalId && { mesa: { sucursalId } })
+        ...baseWhere
       },
       select: { total: true }
     });
     const ventasHoy = ordersToday.reduce((sum, o) => sum + o.total, 0);
 
-    // 2. Pedidos en curso (Pendientes o Aceptados)
+    // 2. Pedidos en curso
     const pedidosEnCurso = await this.prisma.pedido.count({
       where: {
         estado: { in: ['PENDIENTE', 'ACEPTADO'] },
-        ...(sucursalId && { mesa: { sucursalId } })
+        ...baseWhere
       }
     });
 
-    // 3. Mesas ocupadas
+    // 3. Mesas
     const mesasTotales = await this.prisma.mesa.count({
-      where: { isActive: true, ...(sucursalId && { sucursalId }) }
+      where: { 
+        isActive: true, 
+        ...(sucursalId && { sucursalId }),
+        ...(empresaId && { sucursal: { empresaId } })
+      }
     });
     const mesasOcupadas = await this.prisma.mesa.count({
-      where: { isActive: true, isOccupied: true, ...(sucursalId && { sucursalId }) }
+      where: { 
+        isActive: true, 
+        isOccupied: true, 
+        ...(sucursalId && { sucursalId }),
+        ...(empresaId && { sucursal: { empresaId } })
+      }
     });
 
-    // 4. Platos populares (Top 5)
-    // Nota: Como los items están en JSON, esto es un poco más complejo en Prisma directo sin SQL Raw
-    // pero podemos obtener los últimos 100 pedidos y agrupar en memoria para prototipo rápido
+    // SaaS Metrics (Solo para SuperAdmin)
+    let totalClientes = 0;
+    let totalSucursales = 0;
+    if (!empresaId && !sucursalId) {
+      totalClientes = await this.prisma.empresa.count();
+      totalSucursales = await this.prisma.sucursal.count();
+    }
+
+    // 4. Platos populares
     const recentOrders = await this.prisma.pedido.findMany({
-      where: { estado: 'ENTREGADO', ...(sucursalId && { mesa: { sucursalId } }) },
+      where: { estado: 'ENTREGADO', ...baseWhere },
       take: 200,
       orderBy: { createdAt: 'desc' }
     });
@@ -74,7 +95,7 @@ export class StatsService {
         where: {
           estado: 'ENTREGADO',
           createdAt: { gte: dayStart, lte: dayEnd },
-          ...(sucursalId && { mesa: { sucursalId } })
+          ...baseWhere
         },
         select: { total: true }
       });
@@ -91,7 +112,9 @@ export class StatsService {
       mesasOcupadas,
       mesasTotales,
       platosPopulares,
-      ventasUltimaSemana
+      ventasUltimaSemana,
+      totalClientes,
+      totalSucursales
     };
   }
 }

@@ -35,6 +35,11 @@ export class AdminLayoutComponent implements OnInit {
     });
   }
 
+  formatRol(rol: string): string {
+    if (!rol) return '';
+    return rol.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  }
+
   logout() {
     this.authService.logout();
   }
