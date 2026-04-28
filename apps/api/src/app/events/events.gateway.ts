@@ -56,4 +56,8 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   notifyOrderStatusChanged(sucursalId: string, data: any) {
     this.server.to(`sucursal_${sucursalId}`).emit('orderStatusChanged', data);
   }
+
+  notifyComensalJoined(sucursalId: string, data: any) {
+    this.server.to(`sucursal_${sucursalId}`).emit('comensalJoined', data);
+  }
 }

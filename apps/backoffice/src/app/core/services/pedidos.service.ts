@@ -15,12 +15,20 @@ export type EstadoPedido = 'PENDIENTE' | 'ACEPTADO' | 'ENTREGADO';
 export interface Pedido {
   id: string;
   mesaId: string;
+  sesionId?: string;
+  comensalId?: string;
+  esCompartido: boolean;
   items: PedidoItem[];
   estado: EstadoPedido;
   total: number;
   notas?: string;
   createdAt: string;
   updatedAt: string;
+  comensal?: {
+    id: string;
+    nombre: string;
+    esLider: boolean;
+  };
   mesa?: {
     id: string;
     numero: number;
@@ -36,14 +44,36 @@ export class PedidosService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/pedido`;
 
-  crearPedido(mesaId: string, items: PedidoItem[], notas?: string): Observable<Pedido> {
-    return this.http.post<Pedido>(this.apiUrl, { mesaId, items, notas });
+  crearPedido(
+    mesaId: string,
+    items: PedidoItem[],
+    notas?: string,
+    sesionId?: string,
+    comensalId?: string,
+    esCompartido: boolean = false
+  ): Observable<Pedido> {
+    return this.http.post<Pedido>(this.apiUrl, {
+      mesaId,
+      items,
+      notas,
+      sesionId,
+      comensalId,
+      esCompartido
+    });
   }
 
   getPedidosPorMesa(mesaId: string, estado?: EstadoPedido): Observable<Pedido[]> {
     let url = `${this.apiUrl}/mesa/${mesaId}`;
     if (estado) {
       url += `?estado=${estado}`;
+    }
+    return this.http.get<Pedido[]>(url);
+  }
+
+  getPedidosPorSesion(sesionId: string, comensalId?: string): Observable<Pedido[]> {
+    let url = `${this.apiUrl}/sesion/${sesionId}`;
+    if (comensalId) {
+      url += `?comensalId=${comensalId}`;
     }
     return this.http.get<Pedido[]>(url);
   }

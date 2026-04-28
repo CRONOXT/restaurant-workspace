@@ -29,8 +29,32 @@ model Mesa {
   isActive    Boolean    @default(true)
   isOccupied  Boolean    @default(false)
   pedidos     Pedido[]
+  sesiones    Sesion[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+}
+
+model Sesion {
+  id          String      @id @default(uuid())
+  mesaId      String
+  mesa        Mesa        @relation(fields: [mesaId], references: [id])
+  codigo      String      @unique  // Código de 6 dígitos para invitar
+  isActive    Boolean     @default(true)
+  comensales  Comensal[]
+  pedidos     Pedido[]
+  createdAt   DateTime    @default(now())
+  closedAt    DateTime?
+}
+
+model Comensal {
+  id          String    @id @default(uuid())
+  sesionId    String
+  sesion      Sesion    @relation(fields: [sesionId], references: [id])
+  nombre      String
+  token       String    @unique @default(uuid())
+  esLider     Boolean   @default(false)
+  pedidos     Pedido[]
+  createdAt   DateTime  @default(now())
 }
 
 enum EstadoPedido {
@@ -40,15 +64,20 @@ enum EstadoPedido {
 }
 
 model Pedido {
-  id          String        @id @default(uuid())
-  mesaId      String
-  mesa        Mesa          @relation(fields: [mesaId], references: [id])
-  items       Json          // Array de { productoId, nombre, precio, cantidad }
-  estado      EstadoPedido  @default(PENDIENTE)
-  total       Float         @default(0)
-  notas       String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String        @id @default(uuid())
+  mesaId        String
+  mesa          Mesa          @relation(fields: [mesaId], references: [id])
+  sesionId      String?
+  sesion        Sesion?       @relation(fields: [sesionId], references: [id])
+  comensalId    String?
+  comensal      Comensal?     @relation(fields: [comensalId], references: [id])
+  esCompartido  Boolean       @default(false)
+  items         Json          // Array de { productoId, nombre, precio, cantidad }
+  estado        EstadoPedido  @default(PENDIENTE)
+  total         Float         @default(0)
+  notas         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }
 
 model Menu {

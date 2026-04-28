@@ -79,5 +79,13 @@ export class EventsService {
       return () => this.socket.off('orderStatusChanged');
     });
   }
-}
 
+  onComensalJoined(): Observable<any> {
+    return new Observable(observer => {
+      this.socket.on('comensalJoined', (data) => {
+        this.ngZone.run(() => observer.next(data));
+      });
+      return () => this.socket.off('comensalJoined');
+    });
+  }
+}

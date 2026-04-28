@@ -11,6 +11,7 @@ import { CategoriaModule } from './categoria/categoria.module';
 import { ProductoModule } from './producto/producto.module';
 import { EventsModule } from './events/events.module';
 import { PedidoModule } from './pedido/pedido.module';
+import { SesionModule } from './sesion/sesion.module';
 
 @Module({
   imports: [
@@ -23,7 +24,8 @@ import { PedidoModule } from './pedido/pedido.module';
     CategoriaModule,
     ProductoModule,
     EventsModule,
-    PedidoModule
+    PedidoModule,
+    SesionModule
   ],
   controllers: [AppController],
   providers: [AppService],

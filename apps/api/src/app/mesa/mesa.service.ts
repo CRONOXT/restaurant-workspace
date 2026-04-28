@@ -10,32 +10,35 @@ export class MesaService {
     private eventsGateway: EventsGateway
   ) {}
 
+  private mesaIncludes() {
+    return {
+      sucursal: true,
+      pedidos: {
+        where: { estado: { not: 'ENTREGADO' as const } },
+        orderBy: { createdAt: 'desc' as const },
+        include: { comensal: true }
+      },
+      sesiones: {
+        where: { isActive: true },
+        include: { comensales: true },
+        take: 1
+      }
+    };
+  }
+
   async create(data: Prisma.MesaCreateInput): Promise<Mesa> {
     return this.prisma.mesa.create({ data });
   }
 
-  async findAll(sucursalId?: string): Promise<Mesa[]> {
+  async findAll(sucursalId?: string) {
+    const includes = this.mesaIncludes();
     if (sucursalId) {
-      return this.prisma.mesa.findMany({ 
+      return this.prisma.mesa.findMany({
         where: { sucursalId },
-        include: { 
-          sucursal: true,
-          pedidos: {
-            where: { estado: { not: 'ENTREGADO' } },
-            orderBy: { createdAt: 'desc' }
-          }
-        } 
+        include: includes
       });
     }
-    return this.prisma.mesa.findMany({ 
-      include: { 
-        sucursal: true,
-        pedidos: {
-          where: { estado: { not: 'ENTREGADO' } },
-          orderBy: { createdAt: 'desc' }
-        }
-      } 
-    });
+    return this.prisma.mesa.findMany({ include: includes });
   }
 
   async findOne(id: string): Promise<Mesa | null> {
@@ -66,6 +69,18 @@ export class MesaService {
   }
 
   async free(id: string): Promise<Mesa> {
+    // Cerrar sesión activa si existe
+    const sesionActiva = await this.prisma.sesion.findFirst({
+      where: { mesaId: id, isActive: true }
+    });
+
+    if (sesionActiva) {
+      await this.prisma.sesion.update({
+        where: { id: sesionActiva.id },
+        data: { isActive: false, closedAt: new Date() }
+      });
+    }
+
     const mesa = await this.prisma.mesa.update({
       where: { id },
       data: { isOccupied: false },
@@ -79,4 +94,3 @@ export class MesaService {
     return this.prisma.mesa.delete({ where: { id } });
   }
 }
-

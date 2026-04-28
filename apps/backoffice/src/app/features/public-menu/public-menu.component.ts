@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
@@ -8,6 +9,7 @@ import { Subscription } from 'rxjs';
 import { UiService } from '../../core/services/ui.service';
 import { UiContainerComponent } from '../../shared/components/ui-container/ui-container.component';
 import { PedidosService, Pedido, PedidoItem, EstadoPedido } from '../../core/services/pedidos.service';
+import { SesionesService, Sesion, Comensal, DesgloseCuentas } from '../../core/services/sesiones.service';
 import { EventsService } from '../../core/services/events.service';
 
 interface Menu {
@@ -36,7 +38,7 @@ interface Categoria {
 @Component({
   selector: 'app-public-menu',
   standalone: true,
-  imports: [CommonModule, UiContainerComponent],
+  imports: [CommonModule, FormsModule, UiContainerComponent],
   templateUrl: './public-menu.component.html',
   styleUrls: ['./public-menu.component.css']
 })
@@ -46,8 +48,12 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private uiService = inject(UiService);
   private pedidosService = inject(PedidosService);
+  private sesionesService = inject(SesionesService);
   private eventsService = inject(EventsService);
   private subscriptions = new Subscription();
+
+  // Token key for localStorage
+  private readonly TOKEN_KEY = 'comensal_token';
 
   menuId: string | null = null;
   sucursalId: string | null = null;
@@ -60,15 +66,26 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
 
   loading = true;
   error = false;
-  viewState: 'select_mesa' | 'menu' = 'menu';
+  viewState: 'loading' | 'identify' | 'join_session' | 'menu' = 'loading';
 
+  // Sesión y comensal
+  sesion: Sesion | null = null;
+  comensalActual: Comensal | null = null;
+  nombreInput = '';
+  codigoInput = '';
+
+  // Menú
   activeCategory: string | null = null;
   carrito: { producto: Producto, cantidad: number }[] = [];
   isCartOpen = false;
+  esCompartido = false;
 
-  // Pedidos realizados en esta sesión
+  // Pedidos y cuentas
   pedidosRealizados: Pedido[] = [];
   showPedidos = false;
+  showMiCuenta = false;
+  showInvitar = false;
+  desgloseCuentas: DesgloseCuentas | null = null;
 
   get cartTotal() {
     return this.carrito.reduce((sum, item) => sum + (item.producto.precio * item.cantidad), 0);
@@ -82,22 +99,22 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
     return this.pedidosRealizados.filter(p => p.estado !== 'ENTREGADO');
   }
 
+  get miCuenta(): any {
+    if (!this.desgloseCuentas || !this.comensalActual) return null;
+    return this.desgloseCuentas.comensales.find(c => c.id === this.comensalActual!.id);
+  }
+
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id');
-    const pathType = this.route.snapshot.url[0]?.path; // 'mesa' o 'carta'
-    console.log(id);
-    console.log(pathType);
+    const pathType = this.route.snapshot.url[0]?.path;
+
     if (pathType === 'mesa' && id) {
-      // El ID es en realidad un código QR de mesa
       this.loadMenuFromMesa(id);
     } else {
-      // Comportamiento normal, si viene sucursal buscamos mesas
       this.menuId = id;
       this.sucursalId = this.route.snapshot.queryParamMap.get('sucursal') || id;
-      
       if (this.sucursalId) {
-        this.viewState = 'select_mesa';
-        this.loadMesasDisponibles(this.sucursalId);
+        this.viewState = 'identify';
         this.loadMenuData();
       } else {
         this.viewState = 'menu';
@@ -110,110 +127,63 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
     this.subscriptions.unsubscribe();
   }
 
-  setupWebSockets() {
-    if (!this.sucursalId) return;
-    this.eventsService.connect(this.sucursalId);
-    
-    this.subscriptions.add(
-      this.eventsService.onOrderStatusChanged().subscribe((pedidoData: any) => {
-        // Actualizar el estado del pedido en nuestra lista local
-        const found = this.pedidosRealizados.find(p => p.id === pedidoData.id);
-        if (found) {
-          const estadoAnterior = found.estado;
-          found.estado = pedidoData.estado;
-          found.updatedAt = pedidoData.updatedAt;
+  // --- IDENTIFICATION FLOW ---
+
+  private checkExistingToken() {
+    const token = localStorage.getItem(this.TOKEN_KEY);
+    if (!token) return;
+
+    this.sesionesService.getComensalByToken(token).subscribe({
+      next: (comensal) => {
+        if (comensal && (comensal as any).sesion?.isActive) {
+          // Reconexión exitosa
+          this.comensalActual = comensal;
+          this.sesion = (comensal as any).sesion;
+          this.mesaId = this.sesion!.mesaId;
+          this.viewState = 'menu';
+          this.loadPedidosSesion();
+          this.setupWebSockets();
           this.cdr.detectChanges();
-
-          if (pedidoData.estado === 'ACEPTADO') {
-            this.uiService.showToast('Pedido Aceptado', '¡Tu pedido ha sido aceptado y está siendo preparado!', 'success');
-          } else if (pedidoData.estado === 'ENTREGADO') {
-            this.uiService.showToast('Pedido Entregado', '¡Tu pedido ha sido marcado como entregado! ¡Buen provecho!', 'success');
-          }
-        }
-      })
-    );
-  }
-
-  loadMesasDisponibles(sucursalId: string) {
-    this.http.get<any[]>(`${environment.apiUrl}/mesa?sucursalId=${sucursalId}`).subscribe({
-      next: (mesas) => {
-        this.mesasDisponibles = mesas.filter(m => !m.isOccupied && m.isActive);
-        this.loading = false;
-        this.cdr.detectChanges();
-      },
-      error: () => this.loading = false
-    });
-  }
-
-  occupyMesa(mesa: any) {
-    this.loading = true;
-    this.http.put(`${environment.apiUrl}/mesa/${mesa.id}/occupy`, {}).subscribe({
-      next: () => {
-        this.mesaId = mesa.id;
-        this.mesaSeleccionada = mesa;
-        this.viewState = 'menu';
-        this.loading = false;
-        this.loadPedidosMesa();
-        this.setupWebSockets();
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.loading = false;
-        this.error = true;
-        this.cdr.detectChanges();
-      }
-    });
-  }
-
-  loadPedidosMesa() {
-    if (!this.mesaId) return;
-    this.pedidosService.getPedidosPorMesa(this.mesaId).subscribe({
-      next: (pedidos) => {
-        this.pedidosRealizados = pedidos;
-        this.cdr.detectChanges();
-      }
-    });
-  }
-
-  loadMenuForSucursal(sucId: string) {
-     this.http.get<Menu[]>(`${environment.apiUrl}/menu`).subscribe({
-      next: (menus) => {
-        const sucursalMenu = menus.find(m => m.sucursalId === sucId && m.isActive);
-        if (sucursalMenu) {
-          this.menuId = sucursalMenu.id;
-          this.menu = sucursalMenu;
-          this.loadCategories();
-        } else {
-          this.loadFallbackMenu();
         }
       },
       error: () => {
-        this.error = true;
+        // Token inválido, ignorar
+        localStorage.removeItem(this.TOKEN_KEY);
       }
     });
   }
 
   loadMenuFromMesa(qrCode: string) {
-    // 1. Obtener la Mesa por su código QR
     this.http.get<any>(`${environment.apiUrl}/mesa/${qrCode}`).subscribe({
       next: (mesa) => {
         if (mesa && mesa.sucursalId) {
           this.mesaId = mesa.id;
           this.sucursalId = mesa.sucursalId;
+          this.mesaSeleccionada = mesa;
 
-          if (mesa.isOccupied) {
-            // Mesa ya ocupada, simplemente cargar el menú 
-            // aunque se podría mostrar un mensaje advirtiendo que ya está ocupada
-            this.viewState = 'menu';
-            this.mesaSeleccionada = mesa;
-            this.loadMenuForSucursal(mesa.sucursalId);
-            this.loadPedidosMesa();
-            this.setupWebSockets();
+          // Verificar si tenemos un token guardado
+          const token = localStorage.getItem(this.TOKEN_KEY);
+          if (token) {
+            this.sesionesService.getComensalByToken(token).subscribe({
+              next: (comensal) => {
+                if (comensal && (comensal as any).sesion?.isActive && (comensal as any).sesion?.mesaId === mesa.id) {
+                  this.comensalActual = comensal;
+                  this.sesion = (comensal as any).sesion;
+                  this.viewState = 'menu';
+                  this.loadMenuForSucursal(mesa.sucursalId);
+                  this.loadPedidosSesion();
+                  this.setupWebSockets();
+                  this.loading = false;
+                  this.cdr.detectChanges();
+                  return;
+                }
+                // Token no válido para esta mesa
+                this.handleMesaEntry(mesa);
+              },
+              error: () => this.handleMesaEntry(mesa)
+            });
           } else {
-             // Permitir confirmarla
-             this.viewState = 'select_mesa';
-             this.mesasDisponibles = [mesa];
-             this.loadMenuForSucursal(mesa.sucursalId); // precarga menú en fondo
+            this.handleMesaEntry(mesa);
           }
         } else {
           this.error = true;
@@ -229,13 +199,158 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
     });
   }
 
+  private handleMesaEntry(mesa: any) {
+    this.loadMenuForSucursal(mesa.sucursalId);
+
+    if (mesa.isOccupied) {
+      // Mesa ocupada → hay sesión activa → mostrar formulario para unirse
+      this.sesionesService.getSesionActiva(mesa.id).subscribe({
+        next: (sesion) => {
+          if (sesion) {
+            this.sesion = sesion;
+            this.viewState = 'join_session';
+          } else {
+            // Ocupada pero sin sesión activa (caso raro), crear nueva
+            this.viewState = 'identify';
+          }
+          this.loading = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.viewState = 'identify';
+          this.loading = false;
+          this.cdr.detectChanges();
+        }
+      });
+    } else {
+      // Mesa libre → crear sesión
+      this.viewState = 'identify';
+      this.loading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  crearSesion() {
+    if (!this.mesaId || !this.nombreInput.trim()) return;
+
+    this.loading = true;
+    this.sesionesService.crearSesion(this.mesaId, this.nombreInput.trim()).subscribe({
+      next: (result) => {
+        this.sesion = result.sesion;
+        this.comensalActual = result.comensal;
+        localStorage.setItem(this.TOKEN_KEY, result.token);
+        this.viewState = 'menu';
+        this.loading = false;
+        this.setupWebSockets();
+        this.uiService.showToast('¡Bienvenido!', `Sesión creada. Tu código de invitación: ${result.sesion.codigo}`, 'success', 6000);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.loading = false;
+        const msg = err.error?.message || 'Error al crear la sesión';
+        this.uiService.showToast('Error', msg, 'error');
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  unirseASesion() {
+    if (!this.codigoInput.trim() || !this.nombreInput.trim()) return;
+
+    this.loading = true;
+    this.sesionesService.unirseASesion(this.codigoInput.trim(), this.nombreInput.trim()).subscribe({
+      next: (result) => {
+        this.sesion = result.sesion;
+        this.comensalActual = result.comensal;
+        this.mesaId = result.sesion.mesaId;
+        localStorage.setItem(this.TOKEN_KEY, result.token);
+        this.viewState = 'menu';
+        this.loading = false;
+        this.loadPedidosSesion();
+        this.setupWebSockets();
+        this.uiService.showToast('¡Bienvenido!', `Te uniste a la mesa. ¡A pedir!`, 'success');
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.loading = false;
+        const msg = err.error?.message || 'Código no válido o sesión inactiva';
+        this.uiService.showToast('Error', msg, 'error');
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  // --- WEBSOCKETS ---
+
+  setupWebSockets() {
+    if (!this.sucursalId) return;
+    this.eventsService.connect(this.sucursalId);
+
+    this.subscriptions.add(
+      this.eventsService.onOrderStatusChanged().subscribe((pedidoData: any) => {
+        const found = this.pedidosRealizados.find(p => p.id === pedidoData.id);
+        if (found) {
+          found.estado = pedidoData.estado;
+          found.updatedAt = pedidoData.updatedAt;
+          this.cdr.detectChanges();
+
+          if (pedidoData.estado === 'ACEPTADO') {
+            this.uiService.showToast('Pedido Aceptado', '¡Tu pedido ha sido aceptado y está siendo preparado!', 'success');
+          } else if (pedidoData.estado === 'ENTREGADO') {
+            this.uiService.showToast('Pedido Entregado', '¡Tu pedido ha sido entregado! ¡Buen provecho!', 'success');
+          }
+        }
+      })
+    );
+
+    this.subscriptions.add(
+      this.eventsService.onNewOrder().subscribe((pedidoData: any) => {
+        // Si es un pedido de nuestra sesión pero no nuestro, actualizar la lista
+        if (pedidoData.sesionId === this.sesion?.id && pedidoData.comensalId !== this.comensalActual?.id) {
+          this.pedidosRealizados.unshift(pedidoData);
+          const nombre = pedidoData.comensal?.nombre || 'Alguien';
+          this.uiService.showToast('Nuevo Pedido', `${nombre} ha hecho un pedido`, 'info');
+          this.cdr.detectChanges();
+        }
+      })
+    );
+
+    this.subscriptions.add(
+      this.eventsService.onComensalJoined().subscribe((data: any) => {
+        if (data.sesionId === this.sesion?.id) {
+          // Agregar nuevo comensal a la lista local
+          if (this.sesion && !this.sesion.comensales.find(c => c.id === data.comensal.id)) {
+            this.sesion.comensales.push(data.comensal);
+          }
+          this.uiService.showToast('Nuevo Comensal', `${data.comensal.nombre} se unió a la mesa`, 'info');
+          this.cdr.detectChanges();
+        }
+      })
+    );
+  }
+
+  // --- MENU LOADING ---
+
+  loadMenuForSucursal(sucId: string) {
+    this.http.get<Menu[]>(`${environment.apiUrl}/menu`).subscribe({
+      next: (menus) => {
+        const sucursalMenu = menus.find(m => m.sucursalId === sucId && m.isActive);
+        if (sucursalMenu) {
+          this.menuId = sucursalMenu.id;
+          this.menu = sucursalMenu;
+          this.loadCategories();
+        } else {
+          this.loadFallbackMenu();
+        }
+      },
+      error: () => { this.error = true; }
+    });
+  }
+
   loadMenuData() {
     if (this.menuId) {
       this.http.get<Menu>(`${environment.apiUrl}/menu/${this.menuId}`).subscribe({
-        next: (m) => {
-          this.menu = m;
-          this.loadCategories();
-        },
+        next: (m) => { this.menu = m; this.loadCategories(); },
         error: () => this.loadFallbackMenu()
       });
     } else {
@@ -256,32 +371,32 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
           this.cdr.detectChanges();
         }
       },
-      error: () => {
-        this.error = true;
-        this.loading = false;
-        this.cdr.detectChanges();
-      }
+      error: () => { this.error = true; this.loading = false; this.cdr.detectChanges(); }
     });
   }
 
   loadCategories() {
     this.http.get<Categoria[]>(`${environment.apiUrl}/categoria?menuId=${this.menuId}`)
-      .pipe(finalize(() => {
-        this.loading = false;
-        this.cdr.detectChanges();
-      }))
+      .pipe(finalize(() => { this.loading = false; this.cdr.detectChanges(); }))
       .subscribe({
         next: (data) => {
-          // Filtrar categorías vacías y ordenar si es necesario
           this.categorias = data.filter(c => c.productos && c.productos.length > 0);
           if (this.categorias.length > 0) {
             this.activeCategory = this.categorias[0].id;
           }
         },
-        error: () => {
-          this.error = true;
-        }
+        error: () => { this.error = true; }
       });
+  }
+
+  loadPedidosSesion() {
+    if (!this.sesion?.id) return;
+    this.pedidosService.getPedidosPorSesion(this.sesion.id).subscribe({
+      next: (pedidos) => {
+        this.pedidosRealizados = pedidos;
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   scrollToCategory(catId: string) {
@@ -294,7 +409,7 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
     return this.categorias.filter(c => c.id === this.activeCategory);
   }
 
-  // --- CARRITO METHODS ---
+  // --- CARRITO ---
 
   addToCart(producto: Producto) {
     const existing = this.carrito.find(item => item.producto.id === producto.id);
@@ -327,8 +442,19 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
     }
   }
 
-  togglePedidos() {
-    this.showPedidos = !this.showPedidos;
+  togglePedidos() { this.showPedidos = !this.showPedidos; }
+  toggleInvitar() { this.showInvitar = !this.showInvitar; }
+
+  toggleMiCuenta() {
+    this.showMiCuenta = !this.showMiCuenta;
+    if (this.showMiCuenta && this.sesion?.id) {
+      this.sesionesService.getCuentas(this.sesion.id).subscribe({
+        next: (data) => {
+          this.desgloseCuentas = data;
+          this.cdr.detectChanges();
+        }
+      });
+    }
   }
 
   getEstadoLabel(estado: EstadoPedido): string {
@@ -350,8 +476,8 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
   }
 
   enviarPedido() {
-    if (!this.mesaId || this.carrito.length === 0) return;
-    
+    if (!this.mesaId || this.carrito.length === 0 || !this.comensalActual || !this.sesion) return;
+
     this.loading = true;
     const items: PedidoItem[] = this.carrito.map(item => ({
       productoId: item.producto.id,
@@ -360,13 +486,22 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
       cantidad: item.cantidad
     }));
 
-    this.pedidosService.crearPedido(this.mesaId, items).subscribe({
+    this.pedidosService.crearPedido(
+      this.mesaId,
+      items,
+      undefined,
+      this.sesion.id,
+      this.esCompartido ? undefined : this.comensalActual.id,
+      this.esCompartido
+    ).subscribe({
       next: (pedido) => {
         this.pedidosRealizados.unshift(pedido);
         this.carrito = [];
         this.isCartOpen = false;
+        this.esCompartido = false;
         this.loading = false;
-        this.uiService.showToast('¡Éxito!', '¡Tu pedido ha sido enviado y está pendiente de aceptación!', 'success');
+        const tipo = pedido.esCompartido ? '(compartido) ' : '';
+        this.uiService.showToast('¡Éxito!', `¡Pedido ${tipo}enviado y pendiente de aceptación!`, 'success');
         this.cdr.detectChanges();
       },
       error: () => {
@@ -377,4 +512,3 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
     });
   }
 }
-

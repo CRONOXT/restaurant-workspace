@@ -10,8 +10,22 @@ export class PedidoController {
 
   @Post()
   @ApiOperation({ summary: 'Crear un nuevo pedido desde una mesa' })
-  create(@Body() body: { mesaId: string; items: any[]; notas?: string }) {
-    return this.pedidoService.create(body.mesaId, body.items, body.notas);
+  create(@Body() body: {
+    mesaId: string;
+    items: any[];
+    notas?: string;
+    sesionId?: string;
+    comensalId?: string;
+    esCompartido?: boolean;
+  }) {
+    return this.pedidoService.create(
+      body.mesaId,
+      body.items,
+      body.notas,
+      body.sesionId,
+      body.comensalId,
+      body.esCompartido || false
+    );
   }
 
   @Get()
@@ -30,6 +44,15 @@ export class PedidoController {
     @Query('estado') estado?: EstadoPedido
   ) {
     return this.pedidoService.findByMesa(mesaId, estado);
+  }
+
+  @Get('sesion/:sesionId')
+  @ApiOperation({ summary: 'Obtener pedidos de una sesión' })
+  findBySesion(
+    @Param('sesionId') sesionId: string,
+    @Query('comensalId') comensalId?: string
+  ) {
+    return this.pedidoService.findBySesion(sesionId, comensalId);
   }
 
   @Get(':id')

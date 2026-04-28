@@ -10,7 +10,14 @@ export class PedidoService {
     private eventsGateway: EventsGateway
   ) {}
 
-  async create(mesaId: string, items: any[], notas?: string) {
+  async create(
+    mesaId: string,
+    items: any[],
+    notas?: string,
+    sesionId?: string,
+    comensalId?: string,
+    esCompartido: boolean = false
+  ) {
     const mesa = await this.prisma.mesa.findUnique({
       where: { id: mesaId },
       include: { sucursal: true }
@@ -25,12 +32,15 @@ export class PedidoService {
     const pedido = await this.prisma.pedido.create({
       data: {
         mesaId: mesa.id,
+        sesionId: sesionId || undefined,
+        comensalId: comensalId || undefined,
+        esCompartido,
         items,
         total,
         notas,
         estado: EstadoPedido.PENDIENTE
       },
-      include: { mesa: true }
+      include: { mesa: true, comensal: true }
     });
 
     // Emitir evento de nuevo pedido a la sucursal correspondiente
@@ -50,7 +60,19 @@ export class PedidoService {
     }
     return this.prisma.pedido.findMany({
       where,
-      include: { mesa: true },
+      include: { mesa: true, comensal: true },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async findBySesion(sesionId: string, comensalId?: string) {
+    const where: any = { sesionId };
+    if (comensalId) {
+      where.comensalId = comensalId;
+    }
+    return this.prisma.pedido.findMany({
+      where,
+      include: { mesa: true, comensal: true },
       orderBy: { createdAt: 'desc' }
     });
   }
@@ -65,7 +87,7 @@ export class PedidoService {
     }
     return this.prisma.pedido.findMany({
       where,
-      include: { mesa: { include: { sucursal: true } } },
+      include: { mesa: { include: { sucursal: true } }, comensal: true },
       orderBy: { createdAt: 'desc' }
     });
   }
@@ -73,7 +95,7 @@ export class PedidoService {
   async findOne(id: string) {
     const pedido = await this.prisma.pedido.findUnique({
       where: { id },
-      include: { mesa: { include: { sucursal: true } } }
+      include: { mesa: { include: { sucursal: true } }, comensal: true }
     });
     if (!pedido) {
       throw new NotFoundException('Pedido no encontrado');
@@ -94,7 +116,7 @@ export class PedidoService {
     const updated = await this.prisma.pedido.update({
       where: { id },
       data: { estado },
-      include: { mesa: { include: { sucursal: true } } }
+      include: { mesa: { include: { sucursal: true } }, comensal: true }
     });
 
     // Emitir evento de cambio de estado a la sucursal correspondiente

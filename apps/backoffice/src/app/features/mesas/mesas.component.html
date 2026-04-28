@@ -1,7 +1,6 @@
 <div class="mesas-container">
   <div class="header">
     <h1>Gestión de Mesas</h1>
-    <!-- <button class="btn-primary" (click)="createMesa()">+ Nueva Mesa</button> -->
   </div>
   
   <div *ngIf="loading" class="loading-state">
@@ -10,7 +9,7 @@
   </div>
 
   <div *ngIf="!loading && mesas.length === 0" class="empty-state">
-    <p>No hay mesas configuradas aún. Crea una sucursal en BD y luego una mesa.</p>
+    <p>No hay mesas configuradas aún.</p>
   </div>
 
   <div class="mesas-grid" *ngIf="!loading && mesas.length > 0">
@@ -33,35 +32,55 @@
         <p><i class="icon-users"></i> Capacidad: {{ mesa.capacidad }} personas</p>
       </div>
 
+      <!-- Sesión activa info -->
+      <div *ngIf="getComensalesCount(mesa) > 0" style="margin-top: 8px; padding: 8px 12px; background: #f0f0ff; border-radius: 8px; font-size: 0.85em; border: 1px solid #e0e7ff;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: #4338ca; font-weight: 600;">
+            👥 {{ getComensalesCount(mesa) }} comensal{{ getComensalesCount(mesa) > 1 ? 'es' : '' }}
+          </span>
+          <span style="color: #6366f1; font-size: 0.8em; font-weight: 500;">
+            Código: {{ getSesionCodigo(mesa) }}
+          </span>
+        </div>
+      </div>
+
       <!-- Pedidos activos resumen -->
-      <div class="mesa-pedidos" *ngIf="getPedidoCount(mesa) > 0" style="margin-top: 10px; background-color: #f9fafb; padding: 12px; border-radius: 8px; font-size: 0.9em;">
+      <div class="mesa-pedidos" *ngIf="getPedidoCount(mesa) > 0" style="margin-top: 8px; background-color: #f9fafb; padding: 12px; border-radius: 8px; font-size: 0.9em;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <h4 style="margin: 0; font-size: 0.95em; color: #374151;">
-            📋 {{ getPedidoCount(mesa) }} pedido{{ getPedidoCount(mesa) > 1 ? 's' : '' }} activo{{ getPedidoCount(mesa) > 1 ? 's' : '' }}
+            📋 {{ getPedidoCount(mesa) }} pedido{{ getPedidoCount(mesa) > 1 ? 's' : '' }}
           </h4>
-          <span *ngIf="getPendienteCount(mesa) > 0" class="badge-pendiente" style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; font-weight: 600; animation: blink 1.5s infinite;">
+          <span *ngIf="getPendienteCount(mesa) > 0" style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; font-weight: 600; animation: blink 1.5s infinite;">
             {{ getPendienteCount(mesa) }} pendiente{{ getPendienteCount(mesa) > 1 ? 's' : '' }}
           </span>
         </div>
 
         <div *ngFor="let pedido of $any(mesa.pedidosActivos) | slice:0:3" style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #e5e7eb;">
           <div style="font-size: 0.85em;">
+            <span style="color: #6366f1; font-weight: 500;">{{ $any(pedido).comensal?.nombre || 'Compartido' }}</span>
+            <span *ngIf="$any(pedido).esCompartido" style="font-size: 0.7em; color: #4338ca;"> 🤝</span>
+            —
             <span *ngFor="let item of $any(pedido).items | slice:0:2; let last = last">
               {{ $any(item).cantidad }}x {{ $any(item).nombre }}{{ !last ? ', ' : '' }}
             </span>
-            <span *ngIf="$any(pedido).items?.length > 2" style="color: #6b7280;">...</span>
           </div>
           <span class="estado-badge-mini" [ngClass]="getEstadoClass($any(pedido).estado)" style="padding: 2px 8px; border-radius: 10px; font-size: 0.75em; font-weight: 600;">
             {{ getEstadoLabel($any(pedido).estado) }}
           </span>
         </div>
+      </div>
 
-        <button class="btn-primary" (click)="showOrderDetails(mesa)" style="width: 100%; padding: 6px; font-size: 0.85em; margin-top: 8px;">
-          Gestionar Pedidos
+      <!-- Botones de gestión (siempre visibles cuando mesa ocupada) -->
+      <div *ngIf="mesa.isOccupied" style="display: flex; gap: 6px; margin-top: 8px;">
+        <button class="btn-primary" (click)="showOrderDetails(mesa)" style="flex: 1; padding: 6px; font-size: 0.85em;">
+          📋 Pedidos
+        </button>
+        <button class="btn-secondary" *ngIf="getComensalesCount(mesa) > 0" (click)="showCuentas(mesa)" style="flex: 1; padding: 6px; font-size: 0.85em; background: #f0f4ff; color: #4338ca; border: 1px solid #c7d2fe;">
+          💰 Ver Cuentas
         </button>
       </div>
 
-      <div class="mesa-actions mt-3" style="display: flex; justify-content: space-between; gap: 8px; margin-top: 12px;">
+      <div class="mesa-actions" style="display: flex; justify-content: space-between; gap: 8px; margin-top: 12px;">
         <button class="btn-secondary" (click)="showQr(mesa)" style="flex: 1; padding: 6px;">Ver QR</button>
         <button class="btn-primary" *ngIf="mesa.isOccupied" (click)="freeMesaManual(mesa)" style="flex: 1; padding: 6px; background-color: #10b981; border: none; color: white; border-radius: 6px; cursor: pointer;">Liberar</button>
       </div>
@@ -69,7 +88,7 @@
   </div>
 </div>
 
-<!-- Modal para QR -->
+<!-- Modal QR -->
 <div class="modal-backdrop" *ngIf="selectedMesaQr">
   <div class="modal-content" style="max-width: 400px; width: 90%;">
     <div class="modal-header">
@@ -86,7 +105,7 @@
   </div>
 </div>
 
-<!-- Modal Detalles de Pedidos con Gestión de Estado -->
+<!-- Modal Pedidos -->
 <div class="modal-backdrop" *ngIf="selectedOrderMesa">
   <div class="modal-content" style="max-width: 600px; width: 95%; max-height: 85vh; overflow-y: auto;">
     <div class="modal-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 15px;">
@@ -94,16 +113,19 @@
       <button class="btn-close" (click)="closeOrderDetails()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
     </div>
     
-    <div class="orders-container" style="padding: 10px 0;">
+    <div style="padding: 10px 0;">
       <div *ngFor="let pedido of selectedMesaPedidos; let i = index" 
            class="pedido-card"
            [ngClass]="getEstadoClass(pedido.estado)"
-           style="padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e5e7eb;">
+           style="padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #e5e7eb;">
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #d1d5db;">
           <div>
             <span style="font-weight: 600; color: #4b5563; font-size: 0.9em;">
-              Pedido #{{ selectedMesaPedidos.length - i }}
+              {{ pedido.comensal?.nombre || 'Sin asignar' }}
+            </span>
+            <span *ngIf="pedido.esCompartido" style="background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 10px; font-size: 0.7em; font-weight: 600; margin-left: 6px;">
+              🤝 Compartido
             </span>
             <span style="font-size: 0.8em; color: #9ca3af; margin-left: 8px;">
               {{ pedido.createdAt | date:'HH:mm' }}
@@ -128,14 +150,14 @@
             <button 
               *ngIf="pedido.estado === 'PENDIENTE'"
               (click)="cambiarEstadoPedido(pedido, 'ACEPTADO')"
-              style="background: #3b82f6; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8em; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+              style="background: #3b82f6; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8em; font-weight: 600; cursor: pointer;">
               ✓ Aceptar
             </button>
             <button 
               *ngIf="pedido.estado === 'ACEPTADO'"
               (click)="cambiarEstadoPedido(pedido, 'ENTREGADO')"
-              style="background: #10b981; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8em; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-              🍽️ Marcar Entregado
+              style="background: #10b981; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8em; font-weight: 600; cursor: pointer;">
+              🍽️ Entregado
             </button>
             <span *ngIf="pedido.estado === 'ENTREGADO'" style="color: #10b981; font-weight: 600; font-size: 0.85em;">
               ✅ Completado
@@ -151,6 +173,74 @@
 
     <div class="modal-footer" style="border-top: 1px solid #e5e7eb; padding-top: 15px; display: flex; justify-content: flex-end;">
       <button class="btn-primary" (click)="closeOrderDetails()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Cuentas -->
+<div class="modal-backdrop" *ngIf="showCuentasModal && cuentasMesa">
+  <div class="modal-content" style="max-width: 600px; width: 95%; max-height: 85vh; overflow-y: auto;">
+    <div class="modal-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 15px;">
+      <h3 style="margin: 0;">💰 Cuentas - Mesa {{ cuentasMesaNumero }}</h3>
+      <button class="btn-close" (click)="closeCuentas()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+    </div>
+
+    <!-- Cuentas individuales -->
+    <div *ngFor="let cuenta of cuentasMesa.comensales" style="background: #f8fafc; padding: 14px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #e2e8f0;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-weight: 700; font-size: 1em;">
+          {{ cuenta.esLider ? '👑' : '🧑' }} {{ cuenta.nombre }}
+        </span>
+        <span style="font-weight: 800; font-size: 1.05em; color: #1e293b;">
+          {{ cuenta.totalAPagar | currency }}
+        </span>
+      </div>
+      
+      <div *ngIf="cuenta.pedidos.length > 0" style="margin-bottom: 6px;">
+        <div *ngFor="let pedido of cuenta.pedidos">
+          <div *ngFor="let item of pedido.items" style="display: flex; justify-content: space-between; font-size: 0.85em; padding: 2px 0;">
+            <span>{{ item.cantidad }}x {{ item.nombre }}</span>
+            <span style="color: #64748b;">{{ item.precio * item.cantidad | currency }}</span>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.85em; font-weight: 600; padding-top: 4px; border-top: 1px dashed #e2e8f0; margin-top: 4px;">
+          <span>Subtotal personal</span>
+          <span>{{ cuenta.subtotal | currency }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="cuenta.parteCompartida > 0" style="display: flex; justify-content: space-between; font-size: 0.85em; color: #4338ca; padding-top: 4px;">
+        <span>🤝 Parte compartida</span>
+        <span>+ {{ cuenta.parteCompartida | currency }}</span>
+      </div>
+    </div>
+
+    <!-- Compartidos -->
+    <div *ngIf="cuentasMesa.compartidos.total > 0" style="background: #f0f4ff; padding: 14px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #c7d2fe;">
+      <h4 style="margin: 0 0 8px; color: #4338ca; font-size: 0.95em;">🤝 Pedidos Compartidos</h4>
+      <div *ngFor="let pedido of cuentasMesa.compartidos.pedidos">
+        <div *ngFor="let item of pedido.items" style="display: flex; justify-content: space-between; font-size: 0.85em; padding: 2px 0;">
+          <span>{{ item.cantidad }}x {{ item.nombre }}</span>
+          <span>{{ item.precio * item.cantidad | currency }}</span>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.9em; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #c7d2fe;">
+        <span>Total compartido</span>
+        <span>{{ cuentasMesa.compartidos.total | currency }}</span>
+      </div>
+      <div style="font-size: 0.8em; color: #6366f1; margin-top: 4px;">
+        ÷ {{ cuentasMesa.comensales.length }} = {{ cuentasMesa.compartidos.porPersona | currency }} por persona
+      </div>
+    </div>
+
+    <!-- Total mesa -->
+    <div style="display: flex; justify-content: space-between; font-weight: 800; font-size: 1.2em; padding: 16px 0; border-top: 2px solid #1e293b; margin-top: 8px;">
+      <span>Total Mesa</span>
+      <span>{{ cuentasMesa.totalMesa | currency }}</span>
+    </div>
+
+    <div class="modal-footer" style="padding-top: 12px; display: flex; justify-content: flex-end;">
+      <button class="btn-primary" (click)="closeCuentas()">Cerrar</button>
     </div>
   </div>
 </div>

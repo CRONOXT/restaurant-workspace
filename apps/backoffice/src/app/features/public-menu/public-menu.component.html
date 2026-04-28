@@ -1,6 +1,6 @@
 <div class="mobile-app">
   <!-- Loading State -->
-  <div class="center-state" *ngIf="loading">
+  <div class="center-state" *ngIf="loading && viewState === 'loading'">
     <div class="spinner"></div>
     <p>Cargando información...</p>
   </div>
@@ -11,42 +11,106 @@
     <p>No se pudo cargar la vista solicitada. Verifica que el código QR sea válido o que tengas conexión.</p>
   </div>
 
-  <!-- Vista Selección de Mesa -->
-  <div *ngIf="!loading && !error && viewState === 'select_mesa'" class="select-mesa-view fade-in">
-    <div style="padding: 20px; text-align: center;">
-      <h2 style="margin-bottom: 2rem;">¡Bienvenido!</h2>
-      <p style="margin-bottom: 20px;">Por favor, confirma tu mesa para poder ver el menú o realizar un pedido.</p>
+  <!-- IDENTIFY: Crear sesión (primer comensal / líder) -->
+  <div *ngIf="!loading && !error && viewState === 'identify'" class="identify-view fade-in">
+    <div class="identify-card">
+      <div class="identify-icon">🍽️</div>
+      <h2>¡Bienvenido!</h2>
+      <p class="identify-subtitle" *ngIf="mesaSeleccionada">Mesa {{ mesaSeleccionada.numero }}</p>
+      <p style="color: #64748b; margin-bottom: 24px;">Ingresa tu nombre para comenzar a pedir</p>
       
-      <div class="mesas-grid" *ngIf="mesasDisponibles.length > 0; else noMesas">
-        <div 
-          style="border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 15px; padding: 15px; cursor: pointer; text-align: left;"
-          *ngFor="let mesa of mesasDisponibles" 
-          (click)="occupyMesa(mesa)"
-        >
-          <h3 style="margin-bottom: 5px;">Mesa {{ mesa.numero }}</h3>
-          <p style="font-size: 0.9rem; color: #64748b;">Capacidad: {{ mesa.capacidad }} personas</p>
-          <button class="btn-primary" style="width: 100%; margin-top: 10px;">Ocupar Mesa</button>
-        </div>
+      <div class="input-group">
+        <input 
+          type="text" 
+          [(ngModel)]="nombreInput" 
+          placeholder="Tu nombre"
+          class="input-field"
+          (keyup.enter)="crearSesion()"
+          maxlength="30"
+          id="nombre-input">
       </div>
       
-      <ng-template #noMesas>
-        <div style="margin-top: 2rem;">
-          <p style="color: #64748b;">La mesa solicitada no está disponible o no hay mesas libres en este momento.</p>
-        </div>
-      </ng-template>
+      <button class="btn-action" (click)="crearSesion()" [disabled]="!nombreInput.trim()">
+        Ocupar Mesa y Comenzar
+      </button>
+
+      <div class="divider">
+        <span>¿Ya hay alguien en la mesa?</span>
+      </div>
+
+      <button class="btn-secondary-action" (click)="viewState = 'join_session'">
+        Unirme con código de invitación
+      </button>
     </div>
   </div>
 
-  <!-- Content (Menu) -->
+  <!-- JOIN_SESSION: Unirse a sesión existente -->
+  <div *ngIf="!loading && !error && viewState === 'join_session'" class="identify-view fade-in">
+    <div class="identify-card">
+      <div class="identify-icon">👋</div>
+      <h2>Unirse a la Mesa</h2>
+      <p *ngIf="sesion" style="color: #64748b; margin-bottom: 8px;">
+        {{ sesion.comensales.length }} persona{{ sesion.comensales.length > 1 ? 's' : '' }} en la mesa
+      </p>
+      <p style="color: #94a3b8; font-size: 0.9em; margin-bottom: 24px;">
+        Pide el código de invitación a quien esté en la mesa
+      </p>
+      
+      <div class="input-group">
+        <input 
+          type="text" 
+          [(ngModel)]="nombreInput" 
+          placeholder="Tu nombre"
+          class="input-field"
+          maxlength="30"
+          id="join-nombre-input">
+      </div>
+      
+      <div class="input-group">
+        <input 
+          type="text" 
+          [(ngModel)]="codigoInput" 
+          placeholder="Código de 6 dígitos"
+          class="input-field"
+          maxlength="6"
+          (keyup.enter)="unirseASesion()"
+          style="text-align: center; font-size: 1.5rem; letter-spacing: 8px; font-weight: 700;"
+          id="codigo-input">
+      </div>
+      
+      <button class="btn-action" (click)="unirseASesion()" [disabled]="!nombreInput.trim() || codigoInput.length < 6">
+        Unirme a la Mesa
+      </button>
+
+      <button class="btn-back" (click)="viewState = 'identify'">
+        ← Volver
+      </button>
+    </div>
+  </div>
+
+  <!-- MENU VIEW (con sesión activa) -->
   <div class="menu-content" *ngIf="!loading && !error && menu && viewState === 'menu'">
     <!-- Header Hero -->
     <header class="menu-hero">
       <div class="overlay"></div>
       <div class="hero-content">
         <h1>{{ menu.nombre }}</h1>
-        <p>¡Bienvenido! Descubre nuestra deliciosa carta.</p>
+        <p *ngIf="comensalActual">Hola, {{ comensalActual.nombre }} 👋</p>
       </div>
     </header>
+
+    <!-- Top Action Bar -->
+    <div class="action-bar" *ngIf="sesion">
+      <button class="action-chip" (click)="toggleInvitar()">
+        📱 Invitar <span class="chip-badge">{{ sesion.comensales.length }}</span>
+      </button>
+      <button class="action-chip" (click)="togglePedidos()" *ngIf="pedidosRealizados.length > 0">
+        📋 Pedidos <span class="chip-badge">{{ pedidosRealizados.length }}</span>
+      </button>
+      <button class="action-chip cuenta-chip" (click)="toggleMiCuenta()">
+        💰 Mi Cuenta
+      </button>
+    </div>
 
     <!-- Sticky Category Nav -->
     <nav class="category-nav">
@@ -96,42 +160,117 @@
       </section>
     </main>
 
-    <!-- Pedidos Activos Banner -->
-    <div class="pedidos-banner" *ngIf="pedidosActivos.length > 0 && !showPedidos" (click)="togglePedidos()" style="position: fixed; top: 10px; right: 10px; background: linear-gradient(135deg, #6366f1, #a855f7); color: white; padding: 8px 16px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; z-index: 999; box-shadow: 0 4px 15px rgba(99,102,241,0.4); font-size: 13px; animation: pulse-glow 2s infinite;">
-      <span style="display: flex; align-items: center; gap: 4px;">
-        📋 {{ pedidosActivos.length }} pedido{{ pedidosActivos.length > 1 ? 's' : '' }}
-      </span>
+    <!-- MODAL: Invitar -->
+    <div class="modal-overlay" *ngIf="showInvitar" (click)="toggleInvitar()">
+      <div class="modal-sheet" (click)="$event.stopPropagation()">
+        <div class="modal-sheet-header">
+          <h2>Invitar a la Mesa</h2>
+          <button class="btn-close-modal" (click)="toggleInvitar()">&times;</button>
+        </div>
+        <div style="text-align: center; padding: 10px 0 20px;">
+          <p style="color: #64748b; margin-bottom: 16px;">Comparte este código con tus amigos para que se unan:</p>
+          <div class="invite-code">{{ sesion?.codigo }}</div>
+          <p style="color: #94a3b8; font-size: 0.8em; margin-top: 8px;">Deben escanear el mismo QR e ingresar este código</p>
+        </div>
+        <div style="border-top: 1px solid #e2e8f0; padding-top: 16px;">
+          <p style="font-weight: 600; margin-bottom: 8px;">En la mesa ({{ sesion?.comensales?.length || 0 }}):</p>
+          <div *ngFor="let c of sesion?.comensales" style="display: flex; align-items: center; gap: 8px; padding: 6px 0;">
+            <span style="font-size: 1.2em;">{{ c.esLider ? '👑' : '🧑' }}</span>
+            <span>{{ c.nombre }}</span>
+            <span *ngIf="c.id === comensalActual?.id" style="color: #6366f1; font-size: 0.8em; font-weight: 600;">(Tú)</span>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Pedidos Panel -->
-    <div class="pedidos-overlay" *ngIf="showPedidos" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1001; display: flex; flex-direction: column; justify-content: flex-end;">
-      <div class="pedidos-panel" style="background: white; border-radius: 20px 20px 0 0; padding: 20px; max-height: 80vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
-          <h2 style="margin: 0; font-size: 1.25rem;">Mis Pedidos</h2>
-          <button (click)="togglePedidos()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+    <!-- MODAL: Pedidos -->
+    <div class="modal-overlay" *ngIf="showPedidos" (click)="togglePedidos()">
+      <div class="modal-sheet" (click)="$event.stopPropagation()">
+        <div class="modal-sheet-header">
+          <h2>Pedidos de la Mesa</h2>
+          <button class="btn-close-modal" (click)="togglePedidos()">&times;</button>
         </div>
 
         <div *ngIf="pedidosRealizados.length === 0" style="text-align: center; padding: 20px; color: #94a3b8;">
-          <p>No has realizado pedidos aún.</p>
+          <p>No hay pedidos aún.</p>
         </div>
 
-        <div *ngFor="let pedido of pedidosRealizados; let i = index" style="background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #e2e8f0;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <span style="font-weight: 600; font-size: 0.9em; color: #475569;">Pedido #{{ pedidosRealizados.length - i }}</span>
-            <span class="pedido-estado" [ngClass]="getEstadoClass(pedido.estado)" style="padding: 4px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 600;">
+        <div *ngFor="let pedido of pedidosRealizados; let i = index" style="background: #f8fafc; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #e2e8f0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div>
+              <span style="font-weight: 600; font-size: 0.85em;">
+                {{ pedido.comensal?.nombre || 'Compartido' }}
+              </span>
+              <span *ngIf="pedido.esCompartido" style="background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 10px; font-size: 0.7em; font-weight: 600; margin-left: 6px;">
+                🤝 Compartido
+              </span>
+            </div>
+            <span [ngClass]="getEstadoClass(pedido.estado)" style="padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600;">
               {{ getEstadoLabel(pedido.estado) }}
             </span>
           </div>
-          <ul style="list-style: none; padding: 0; margin: 0 0 8px 0;">
-            <li *ngFor="let item of pedido.items" style="display: flex; justify-content: space-between; padding: 3px 0; font-size: 0.9em;">
-              <span><strong>{{ item.cantidad }}x</strong> {{ item.nombre }}</span>
-              <span style="color: #64748b;">{{ item.precio * item.cantidad | number:'1.2-2' }} {{ menu?.moneda || 'USD' }}</span>
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            <li *ngFor="let item of pedido.items" style="font-size: 0.9em; padding: 2px 0;">
+              <strong>{{ item.cantidad }}x</strong> {{ item.nombre }}
+              <span style="color: #64748b; float: right;">{{ item.precio * item.cantidad | number:'1.2-2' }}</span>
             </li>
           </ul>
-          <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid #e2e8f0; font-weight: 700; font-size: 0.95em;">
-            <span>Total</span>
-            <span>{{ pedido.total | number:'1.2-2' }} {{ menu?.moneda || 'USD' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Mi Cuenta -->
+    <div class="modal-overlay" *ngIf="showMiCuenta" (click)="toggleMiCuenta()">
+      <div class="modal-sheet" (click)="$event.stopPropagation()">
+        <div class="modal-sheet-header">
+          <h2>💰 Mi Cuenta</h2>
+          <button class="btn-close-modal" (click)="toggleMiCuenta()">&times;</button>
+        </div>
+
+        <div *ngIf="desgloseCuentas && miCuenta">
+          <!-- Mis pedidos personales -->
+          <div class="cuenta-section">
+            <h3 class="cuenta-section-title">🧑 Mis pedidos personales</h3>
+            <div *ngIf="miCuenta.pedidos.length === 0" style="color: #94a3b8; font-size: 0.9em; padding: 8px 0;">
+              No tienes pedidos personales aún.
+            </div>
+            <div *ngFor="let pedido of miCuenta.pedidos" style="padding: 4px 0;">
+              <div *ngFor="let item of pedido.items" style="display: flex; justify-content: space-between; font-size: 0.9em;">
+                <span><strong>{{ item.cantidad }}x</strong> {{ item.nombre }}</span>
+                <span style="color: #475569;">{{ item.precio * item.cantidad | number:'1.2-2' }}</span>
+              </div>
+            </div>
+            <div class="cuenta-subtotal">
+              <span>Subtotal personal</span>
+              <span>{{ miCuenta.subtotal | number:'1.2-2' }} {{ menu?.moneda || 'USD' }}</span>
+            </div>
           </div>
+
+          <!-- Mi parte compartida -->
+          <div class="cuenta-section" *ngIf="desgloseCuentas.compartidos.total > 0">
+            <h3 class="cuenta-section-title">🤝 Compartidos (÷ {{ desgloseCuentas.comensales.length }})</h3>
+            <div *ngFor="let pedido of desgloseCuentas.compartidos.pedidos" style="padding: 4px 0;">
+              <div *ngFor="let item of pedido.items" style="display: flex; justify-content: space-between; font-size: 0.9em; color: #64748b;">
+                <span><strong>{{ item.cantidad }}x</strong> {{ item.nombre }}</span>
+                <span>{{ item.precio * item.cantidad | number:'1.2-2' }}</span>
+              </div>
+            </div>
+            <div class="cuenta-subtotal" style="color: #4338ca;">
+              <span>Mi parte</span>
+              <span>{{ miCuenta.parteCompartida | number:'1.2-2' }} {{ menu?.moneda || 'USD' }}</span>
+            </div>
+          </div>
+
+          <!-- Total a pagar -->
+          <div class="cuenta-total">
+            <span>Total a pagar</span>
+            <span>{{ miCuenta.totalAPagar | number:'1.2-2' }} {{ menu?.moneda || 'USD' }}</span>
+          </div>
+        </div>
+
+        <div *ngIf="!desgloseCuentas" style="text-align: center; padding: 20px;">
+          <div class="spinner"></div>
+          <p style="color: #94a3b8;">Calculando...</p>
         </div>
       </div>
     </div>
@@ -146,11 +285,11 @@
     </div>
 
     <!-- Cart Modal/Overlay -->
-    <div class="cart-overlay" *ngIf="isCartOpen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1001; display: flex; flex-direction: column; justify-content: flex-end;">
-      <div class="cart-modal" style="background: white; border-radius: 20px 20px 0 0; padding: 20px; max-height: 80vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
-          <h2 style="margin: 0; font-size: 1.25rem;">Tu Pedido</h2>
-          <button (click)="toggleCart()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+    <div class="modal-overlay" *ngIf="isCartOpen" (click)="toggleCart()">
+      <div class="modal-sheet" (click)="$event.stopPropagation()">
+        <div class="modal-sheet-header">
+          <h2>Tu Pedido</h2>
+          <button class="btn-close-modal" (click)="toggleCart()">&times;</button>
         </div>
 
         <div *ngFor="let item of carrito" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -165,14 +304,25 @@
           </div>
         </div>
 
+        <!-- Toggle compartido -->
+        <div class="compartido-toggle" *ngIf="sesion && sesion.comensales.length > 1" style="margin: 16px 0; padding: 12px; background: #f0f4ff; border-radius: 10px; display: flex; align-items: center; gap: 10px;">
+          <label class="toggle-switch">
+            <input type="checkbox" [(ngModel)]="esCompartido">
+            <span class="toggle-slider"></span>
+          </label>
+          <div>
+            <span style="font-weight: 600; font-size: 0.95em;">🤝 Pedido compartido</span>
+            <p style="margin: 0; font-size: 0.8em; color: #64748b;">El costo se dividirá entre todos</p>
+          </div>
+        </div>
+
         <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 1.1rem; font-weight: 700;">
             <span>Total</span>
             <span>{{ cartTotal | number:'1.2-2' }} {{ menu.moneda || 'USD' }}</span>
           </div>
-          <button (click)="enviarPedido()" class="btn-primary" style="width: 100%; padding: 15px; border-radius: 12px; font-size: 1.1rem; display: flex; justify-content: center; align-items: center; gap: 10px; background: #0ea5e9;">
-            <i class="bi bi-send-fill" style="transform: rotate(45deg);"></i> 
-            Confirmar y Enviar Pedido
+          <button (click)="enviarPedido()" class="btn-action" style="width: 100%; padding: 15px; font-size: 1.1rem;">
+            {{ esCompartido ? '🤝 Enviar Pedido Compartido' : '📩 Confirmar y Enviar Pedido' }}
           </button>
         </div>
       </div>
