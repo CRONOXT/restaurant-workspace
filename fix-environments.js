@@ -1,8 +1,25 @@
 const fs = require('fs');
 const path = require('path');
 
-const ip = '192.168.50.221';
+// Function to read .env file and get a variable
+const getEnvVar = (varName) => {
+  if (!fs.existsSync('.env')) return null;
+  const envContent = fs.readFileSync('.env', 'utf8');
+  const lines = envContent.split('\n');
+  for (const line of lines) {
+    const [key, value] = line.split('=');
+    if (key && key.trim() === varName) {
+      return value ? value.trim() : null;
+    }
+  }
+  return null;
+};
+
+const ip = getEnvVar('SERVER_IP') || 'localhost';
 const backendPort = '3333';
+
+console.log(`Using IP: ${ip}`);
+
 const envContent = `export const environment = {
   production: false,
   apiUrl: 'http://${ip}:${backendPort}/api'

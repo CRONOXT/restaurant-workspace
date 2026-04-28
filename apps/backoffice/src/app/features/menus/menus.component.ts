@@ -10,6 +10,7 @@ import {
   SucursalesService,
 } from '../../core/services/sucursales.service';
 import { UiService } from '../../core/services/ui.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-menus',
@@ -40,10 +41,18 @@ export class MenusComponent implements OnInit {
   showQrModal = false;
   qrCodeUrl = '';
   qrMenuName = '';
-  baseIp = '192.168.50.221';
+  baseIp = 'localhost';
   currentMenuForQr: Menu | null = null;
 
   ngOnInit() {
+    // Extraer IP de environment.apiUrl si es posible
+    try {
+      const url = new URL(environment.apiUrl);
+      this.baseIp = url.hostname;
+    } catch (e) {
+      console.warn('Could not parse IP from environment.apiUrl');
+    }
+    
     this.loadMenus();
     this.loadSucursales();
   }
