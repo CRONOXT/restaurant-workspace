@@ -235,3 +235,63 @@ h1 {
 .modal-footer .btn-primary {
   width: 100%;
 }
+
+/* Pedido Status Badges */
+.estado-pendiente {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+}
+
+.estado-aceptado {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+}
+
+.estado-entregado {
+  background-color: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+}
+
+.estado-badge.estado-pendiente {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+.estado-badge.estado-aceptado {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+}
+
+.estado-badge.estado-entregado {
+  background-color: #d1fae5 !important;
+  color: #065f46 !important;
+}
+
+.estado-badge-mini.estado-pendiente {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+.estado-badge-mini.estado-aceptado {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+}
+
+.estado-badge-mini.estado-entregado {
+  background-color: #d1fae5 !important;
+  color: #065f46 !important;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pedido-card {
+  transition: all 0.3s ease;
+}
+
+.pedido-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+

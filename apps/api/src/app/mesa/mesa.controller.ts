@@ -36,12 +36,6 @@ export class MesaController {
     return this.mesaService.free(id);
   }
 
-  @Post(':id/order')
-  @ApiOperation({ summary: 'Enviar pedido desde una mesa (cliente)' })
-  sendOrder(@Param('id') id: string, @Body('items') items: any[]) {
-    return this.mesaService.sendOrder(id, items);
-  }
-
   @Put(':id')
   update(@Param('id') id: string, @Body() updateMesaDto: Prisma.MesaUpdateInput) {
     return this.mesaService.update(id, updateMesaDto);
@@ -52,3 +46,4 @@ export class MesaController {
     return this.mesaService.remove(id);
   }
 }
+

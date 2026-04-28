@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angula
 import { CommonModule } from '@angular/common';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { MesasService, Mesa } from '../../core/services/mesas.service';
+import { PedidosService, Pedido, EstadoPedido } from '../../core/services/pedidos.service';
 import { UiService } from '../../core/services/ui.service';
 import { EventsService } from '../../core/services/events.service';
 import { finalize } from 'rxjs/operators';
@@ -16,6 +17,7 @@ import { Subscription } from 'rxjs';
 })
 export class MesasComponent implements OnInit, OnDestroy {
   private mesasService = inject(MesasService);
+  private pedidosService = inject(PedidosService);
   private eventsService = inject(EventsService);
   private uiService = inject(UiService);
   private cdr = inject(ChangeDetectorRef);
@@ -26,6 +28,7 @@ export class MesasComponent implements OnInit, OnDestroy {
   selectedMesaQr: string | null = null;
   selectedMesaNumber: number | null = null;
   selectedOrderMesa: Mesa | null = null;
+  selectedMesaPedidos: Pedido[] = [];
   connectedSucursalId: string | null = null;
 
   // En producción, esto debería venir de las variables de entorno
@@ -67,25 +70,53 @@ export class MesasComponent implements OnInit, OnDestroy {
     );
 
     this.subscriptions.add(
-      this.eventsService.onNewOrder().subscribe((orderData: any) => {
-        const found = this.mesas.find(m => m.id === orderData.mesaId);
+      this.eventsService.onNewOrder().subscribe((pedidoData: any) => {
+        const found = this.mesas.find(m => m.id === pedidoData.mesaId);
         if (found) {
-          const tableStr = `Mesa ${found.numero}`;
-          const itemsStr = orderData.items.map((i: any) => `${i.cantidad}x ${i.nombre}`).join(', ');
-          
+          // Agregar el pedido a la lista activa de la mesa
           if (!found.pedidosActivos) {
             found.pedidosActivos = [];
           }
-          found.pedidosActivos.push(orderData);
+          found.pedidosActivos.unshift(pedidoData);
           
           this.cdr.detectChanges();
 
+          const tableStr = `Mesa ${found.numero}`;
+          const items = pedidoData.items as any[];
+          const itemsStr = items.map((i: any) => `${i.cantidad}x ${i.nombre}`).join(', ');
           this.uiService.showToast(
             '¡Nuevo Pedido!', 
             `La ${tableStr} ordenó: ${itemsStr}.`, 
             'info'
           );
         }
+      })
+    );
+
+    this.subscriptions.add(
+      this.eventsService.onOrderStatusChanged().subscribe((pedidoData: any) => {
+        // Actualizar el estado en la lista local
+        for (const mesa of this.mesas) {
+          if (mesa.pedidosActivos) {
+            const pedido = mesa.pedidosActivos.find((p: any) => p.id === pedidoData.id);
+            if (pedido) {
+              pedido.estado = pedidoData.estado;
+              // Si ya fue entregado, removerlo de activos
+              if (pedidoData.estado === 'ENTREGADO') {
+                mesa.pedidosActivos = mesa.pedidosActivos.filter((p: any) => p.id !== pedidoData.id);
+              }
+              break;
+            }
+          }
+        }
+        // Actualizar también el modal si está abierto
+        if (this.selectedMesaPedidos.length > 0) {
+          const pedido = this.selectedMesaPedidos.find(p => p.id === pedidoData.id);
+          if (pedido) {
+            pedido.estado = pedidoData.estado;
+          }
+        }
+        this.cdr.detectChanges();
       })
     );
   }
@@ -132,7 +163,10 @@ export class MesasComponent implements OnInit, OnDestroy {
       next: (m) => {
         // Optimistic update, aunque debería venir por WebSocket también
         const found = this.mesas.find(x => x.id === m.id);
-        if (found) found.isOccupied = false;
+        if (found) {
+          found.isOccupied = false;
+          found.pedidosActivos = [];
+        }
       },
       error: () => this.uiService.showToast('Error', 'No se pudo liberar la mesa', 'error')
     });
@@ -150,16 +184,74 @@ export class MesasComponent implements OnInit, OnDestroy {
 
   showOrderDetails(mesa: Mesa) {
     this.selectedOrderMesa = mesa;
+    // Cargar pedidos reales de la BD
+    this.pedidosService.getPedidosPorMesa(mesa.id).subscribe({
+      next: (pedidos) => {
+        this.selectedMesaPedidos = pedidos;
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   closeOrderDetails() {
     this.selectedOrderMesa = null;
+    this.selectedMesaPedidos = [];
+  }
+
+  cambiarEstadoPedido(pedido: Pedido, nuevoEstado: EstadoPedido) {
+    this.pedidosService.actualizarEstado(pedido.id, nuevoEstado).subscribe({
+      next: (updated) => {
+        pedido.estado = updated.estado;
+        
+        // Si es ENTREGADO, remover de la lista activa de la mesa
+        if (nuevoEstado === 'ENTREGADO' && this.selectedOrderMesa?.pedidosActivos) {
+          this.selectedOrderMesa.pedidosActivos = this.selectedOrderMesa.pedidosActivos.filter(
+            (p: any) => p.id !== pedido.id
+          );
+        }
+
+        const msg = nuevoEstado === 'ACEPTADO' ? 'Pedido aceptado ✓' : 'Pedido marcado como entregado ✓';
+        this.uiService.showToast('Estado Actualizado', msg, 'success');
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.uiService.showToast('Error', 'No se pudo actualizar el estado del pedido', 'error');
+      }
+    });
+  }
+
+  getPedidoCount(mesa: Mesa): number {
+    return mesa.pedidosActivos ? mesa.pedidosActivos.length : 0;
+  }
+
+  getPendienteCount(mesa: Mesa): number {
+    if (!mesa.pedidosActivos) return 0;
+    return mesa.pedidosActivos.filter((p: any) => p.estado === 'PENDIENTE').length;
+  }
+
+  getEstadoLabel(estado: EstadoPedido): string {
+    switch (estado) {
+      case 'PENDIENTE': return '⏳ Pendiente';
+      case 'ACEPTADO': return '👨‍🍳 En preparación';
+      case 'ENTREGADO': return '✅ Entregado';
+      default: return estado;
+    }
+  }
+
+  getEstadoClass(estado: EstadoPedido): string {
+    switch (estado) {
+      case 'PENDIENTE': return 'estado-pendiente';
+      case 'ACEPTADO': return 'estado-aceptado';
+      case 'ENTREGADO': return 'estado-entregado';
+      default: return '';
+    }
   }
 
   getAllItems(mesa: Mesa): any[] {
     if (!mesa.pedidosActivos) return [];
-    return mesa.pedidosActivos.reduce((acc, pedido) => {
-      return acc.concat(pedido.items);
+    return mesa.pedidosActivos.reduce((acc: any[], pedido: any) => {
+      const items = Array.isArray(pedido.items) ? pedido.items : [];
+      return acc.concat(items);
     }, []);
   }
 }

@@ -18,10 +18,24 @@ export class MesaService {
     if (sucursalId) {
       return this.prisma.mesa.findMany({ 
         where: { sucursalId },
-        include: { sucursal: true } 
+        include: { 
+          sucursal: true,
+          pedidos: {
+            where: { estado: { not: 'ENTREGADO' } },
+            orderBy: { createdAt: 'desc' }
+          }
+        } 
       });
     }
-    return this.prisma.mesa.findMany({ include: { sucursal: true } });
+    return this.prisma.mesa.findMany({ 
+      include: { 
+        sucursal: true,
+        pedidos: {
+          where: { estado: { not: 'ENTREGADO' } },
+          orderBy: { createdAt: 'desc' }
+        }
+      } 
+    });
   }
 
   async findOne(id: string): Promise<Mesa | null> {
@@ -61,32 +75,8 @@ export class MesaService {
     return mesa;
   }
 
-  async sendOrder(id: string, items: any[]): Promise<any> {
-    const mesa = await this.prisma.mesa.findUnique({
-      where: { id },
-      include: { sucursal: true }
-    });
-    if (!mesa) {
-      throw new NotFoundException('Mesa no encontrada');
-    }
-
-    const orderData = {
-      mesaId: mesa.id,
-      numeroMesa: mesa.numero,
-      items,
-      timestamp: new Date()
-    };
-
-    // Emitir el evento de Nuevo Pedido a la sucursal correpondiente
-    this.eventsGateway.notifyNewOrder(mesa.sucursalId, orderData);
-
-    return {
-      message: 'Pedido enviado correctamente',
-      order: orderData
-    };
-  }
-
   async remove(id: string): Promise<Mesa> {
     return this.prisma.mesa.delete({ where: { id } });
   }
 }
+

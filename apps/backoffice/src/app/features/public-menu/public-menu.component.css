@@ -234,3 +234,26 @@
   font-size: 0.75rem;
   background: #f9fafb;
 }
+
+/* Pedidos Status Badges */
+.estado-pendiente {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+.estado-aceptado {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+}
+
+.estado-entregado {
+  background-color: #d1fae5 !important;
+  color: #065f46 !important;
+}
+
+/* Pulse glow for pedidos banner */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 4px 15px rgba(99,102,241,0.4); }
+  50% { box-shadow: 0 4px 25px rgba(99,102,241,0.7); }
+}
+

@@ -70,4 +70,14 @@ export class EventsService {
       return () => this.socket.off('newOrder');
     });
   }
+
+  onOrderStatusChanged(): Observable<any> {
+    return new Observable(observer => {
+      this.socket.on('orderStatusChanged', (data) => {
+        this.ngZone.run(() => observer.next(data));
+      });
+      return () => this.socket.off('orderStatusChanged');
+    });
+  }
 }
+

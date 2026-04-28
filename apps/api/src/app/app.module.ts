@@ -10,6 +10,7 @@ import { MenuModule } from './menu/menu.module';
 import { CategoriaModule } from './categoria/categoria.module';
 import { ProductoModule } from './producto/producto.module';
 import { EventsModule } from './events/events.module';
+import { PedidoModule } from './pedido/pedido.module';
 
 @Module({
   imports: [
@@ -21,9 +22,11 @@ import { EventsModule } from './events/events.module';
     MenuModule,
     CategoriaModule,
     ProductoModule,
-    EventsModule
+    EventsModule,
+    PedidoModule
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
+

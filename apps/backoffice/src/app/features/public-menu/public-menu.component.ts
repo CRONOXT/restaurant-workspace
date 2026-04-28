@@ -1,11 +1,14 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { finalize } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 import { UiService } from '../../core/services/ui.service';
 import { UiContainerComponent } from '../../shared/components/ui-container/ui-container.component';
+import { PedidosService, Pedido, PedidoItem, EstadoPedido } from '../../core/services/pedidos.service';
+import { EventsService } from '../../core/services/events.service';
 
 interface Menu {
   id: string;
@@ -37,11 +40,14 @@ interface Categoria {
   templateUrl: './public-menu.component.html',
   styleUrls: ['./public-menu.component.css']
 })
-export class PublicMenuComponent implements OnInit {
+export class PublicMenuComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private http = inject(HttpClient);
   private cdr = inject(ChangeDetectorRef);
   private uiService = inject(UiService);
+  private pedidosService = inject(PedidosService);
+  private eventsService = inject(EventsService);
+  private subscriptions = new Subscription();
 
   menuId: string | null = null;
   sucursalId: string | null = null;
@@ -60,12 +66,20 @@ export class PublicMenuComponent implements OnInit {
   carrito: { producto: Producto, cantidad: number }[] = [];
   isCartOpen = false;
 
+  // Pedidos realizados en esta sesión
+  pedidosRealizados: Pedido[] = [];
+  showPedidos = false;
+
   get cartTotal() {
     return this.carrito.reduce((sum, item) => sum + (item.producto.precio * item.cantidad), 0);
   }
 
   get cartItemsCount() {
     return this.carrito.reduce((sum, item) => sum + item.cantidad, 0);
+  }
+
+  get pedidosActivos(): Pedido[] {
+    return this.pedidosRealizados.filter(p => p.estado !== 'ENTREGADO');
   }
 
   ngOnInit() {
@@ -92,6 +106,34 @@ export class PublicMenuComponent implements OnInit {
     }
   }
 
+  ngOnDestroy() {
+    this.subscriptions.unsubscribe();
+  }
+
+  setupWebSockets() {
+    if (!this.sucursalId) return;
+    this.eventsService.connect(this.sucursalId);
+    
+    this.subscriptions.add(
+      this.eventsService.onOrderStatusChanged().subscribe((pedidoData: any) => {
+        // Actualizar el estado del pedido en nuestra lista local
+        const found = this.pedidosRealizados.find(p => p.id === pedidoData.id);
+        if (found) {
+          const estadoAnterior = found.estado;
+          found.estado = pedidoData.estado;
+          found.updatedAt = pedidoData.updatedAt;
+          this.cdr.detectChanges();
+
+          if (pedidoData.estado === 'ACEPTADO') {
+            this.uiService.showToast('Pedido Aceptado', '¡Tu pedido ha sido aceptado y está siendo preparado!', 'success');
+          } else if (pedidoData.estado === 'ENTREGADO') {
+            this.uiService.showToast('Pedido Entregado', '¡Tu pedido ha sido marcado como entregado! ¡Buen provecho!', 'success');
+          }
+        }
+      })
+    );
+  }
+
   loadMesasDisponibles(sucursalId: string) {
     this.http.get<any[]>(`${environment.apiUrl}/mesa?sucursalId=${sucursalId}`).subscribe({
       next: (mesas) => {
@@ -107,15 +149,27 @@ export class PublicMenuComponent implements OnInit {
     this.loading = true;
     this.http.put(`${environment.apiUrl}/mesa/${mesa.id}/occupy`, {}).subscribe({
       next: () => {
-        this.mesaId = mesa.id; // ¡Faltaba asignar el ID de la mesa para poder realizar el pedido!
+        this.mesaId = mesa.id;
         this.mesaSeleccionada = mesa;
         this.viewState = 'menu';
         this.loading = false;
+        this.loadPedidosMesa();
+        this.setupWebSockets();
         this.cdr.detectChanges();
       },
       error: () => {
         this.loading = false;
         this.error = true;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  loadPedidosMesa() {
+    if (!this.mesaId) return;
+    this.pedidosService.getPedidosPorMesa(this.mesaId).subscribe({
+      next: (pedidos) => {
+        this.pedidosRealizados = pedidos;
         this.cdr.detectChanges();
       }
     });
@@ -153,6 +207,8 @@ export class PublicMenuComponent implements OnInit {
             this.viewState = 'menu';
             this.mesaSeleccionada = mesa;
             this.loadMenuForSucursal(mesa.sucursalId);
+            this.loadPedidosMesa();
+            this.setupWebSockets();
           } else {
              // Permitir confirmarla
              this.viewState = 'select_mesa';
@@ -271,23 +327,46 @@ export class PublicMenuComponent implements OnInit {
     }
   }
 
+  togglePedidos() {
+    this.showPedidos = !this.showPedidos;
+  }
+
+  getEstadoLabel(estado: EstadoPedido): string {
+    switch (estado) {
+      case 'PENDIENTE': return 'Pendiente';
+      case 'ACEPTADO': return 'En preparación';
+      case 'ENTREGADO': return 'Entregado';
+      default: return estado;
+    }
+  }
+
+  getEstadoClass(estado: EstadoPedido): string {
+    switch (estado) {
+      case 'PENDIENTE': return 'estado-pendiente';
+      case 'ACEPTADO': return 'estado-aceptado';
+      case 'ENTREGADO': return 'estado-entregado';
+      default: return '';
+    }
+  }
+
   enviarPedido() {
     if (!this.mesaId || this.carrito.length === 0) return;
     
     this.loading = true;
-    const items = this.carrito.map(item => ({
+    const items: PedidoItem[] = this.carrito.map(item => ({
       productoId: item.producto.id,
       nombre: item.producto.nombre,
       precio: item.producto.precio,
       cantidad: item.cantidad
     }));
 
-    this.http.post(`${environment.apiUrl}/mesa/${this.mesaId}/order`, { items }).subscribe({
-      next: () => {
+    this.pedidosService.crearPedido(this.mesaId, items).subscribe({
+      next: (pedido) => {
+        this.pedidosRealizados.unshift(pedido);
         this.carrito = [];
         this.isCartOpen = false;
         this.loading = false;
-        this.uiService.showToast('¡Éxito!', '¡Tu pedido ha sido enviado con éxito!', 'success');
+        this.uiService.showToast('¡Éxito!', '¡Tu pedido ha sido enviado y está pendiente de aceptación!', 'success');
         this.cdr.detectChanges();
       },
       error: () => {
@@ -298,3 +377,4 @@ export class PublicMenuComponent implements OnInit {
     });
   }
 }
+
