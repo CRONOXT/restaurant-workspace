@@ -7,11 +7,11 @@ import { CurrentUser } from '../auth/current-user.decorator';
 
 @ApiTags('Menu')
 @Controller('menu')
-@UseGuards(AuthGuard)
 export class MenuController {
   constructor(private readonly menuService: MenuService) {}
 
   @Post()
+  @UseGuards(AuthGuard)
   create(@Body() data: Prisma.MenuCreateInput) {
     return this.menuService.create(data);
   }
@@ -23,22 +23,27 @@ export class MenuController {
     @Query('limit') limit?: number,
     @CurrentUser() user?: any
   ) {
-    const empresaId = user.rol === Rol.ADMIN ? undefined : user.empresaId;
+    // Si no hay usuario (Menú Público), devolvemos todos los menús activos filtrados por búsqueda
+    const empresaId = user ? (user.rol === Rol.ADMIN ? undefined : user.empresaId) : undefined;
     return this.menuService.findAll(empresaId, search, page, limit);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
+  async findOne(@Param('id') id: string, @CurrentUser() user?: any) {
     const menu = await this.menuService.findOne(id);
     if (!menu) return null;
 
-    if (user.rol !== Rol.ADMIN && (menu as any).sucursal.empresaId !== user.empresaId) {
+    // Si hay un usuario logueado (Backoffice), validamos pertenencia
+    if (user && user.rol !== Rol.ADMIN && (menu as any).sucursal.empresaId !== user.empresaId) {
       throw new ForbiddenException('No tienes permiso para ver este menú');
     }
+    
+    // Si no hay usuario (Menú Público), simplemente lo devolvemos
     return menu;
   }
 
   @Put(':id')
+  @UseGuards(AuthGuard)
   async update(@Param('id') id: string, @Body() data: Prisma.MenuUpdateInput, @CurrentUser() user: any) {
     const menu = await this.menuService.findOne(id);
     if (!menu) return null;
@@ -50,6 +55,7 @@ export class MenuController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard)
   async remove(@Param('id') id: string, @CurrentUser() user: any) {
     const menu = await this.menuService.findOne(id);
     if (!menu) return null;

@@ -7,16 +7,17 @@ import { CurrentUser } from '../auth/current-user.decorator';
 
 @ApiTags('Mesa')
 @Controller('mesa')
-@UseGuards(AuthGuard)
 export class MesaController {
   constructor(private readonly mesaService: MesaService) {}
 
   @Post()
+  @UseGuards(AuthGuard)
   create(@Body() createMesaDto: Prisma.MesaCreateInput) {
     return this.mesaService.create(createMesaDto);
   }
 
   @Get()
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Obtener todas las mesas con búsqueda y paginación' })
   findAll(
     @Query('search') search?: string,
@@ -30,11 +31,12 @@ export class MesaController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
+  async findOne(@Param('id') id: string, @CurrentUser() user?: any) {
     const mesa = await this.mesaService.findOne(id);
     if (!mesa) return null;
 
-    if (user.rol !== Rol.ADMIN && (mesa as any).sucursal.empresaId !== user.empresaId) {
+    // Si hay usuario logueado, validar empresa
+    if (user && user.rol !== Rol.ADMIN && (mesa as any).sucursal.empresaId !== user.empresaId) {
       throw new ForbiddenException('No tienes permiso para ver esta mesa');
     }
     return mesa;
@@ -53,6 +55,7 @@ export class MesaController {
   }
 
   @Put(':id')
+  @UseGuards(AuthGuard)
   async update(@Param('id') id: string, @Body() updateMesaDto: Prisma.MesaUpdateInput, @CurrentUser() user: any) {
     const mesa = await this.mesaService.findOne(id);
     if (!mesa) return null;
@@ -64,6 +67,7 @@ export class MesaController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard)
   async remove(@Param('id') id: string, @CurrentUser() user: any) {
     const mesa = await this.mesaService.findOne(id);
     if (!mesa) return null;

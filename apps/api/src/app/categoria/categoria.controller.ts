@@ -6,7 +6,6 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { MenuService } from '../menu/menu.service';
 
 @Controller('categoria')
-@UseGuards(AuthGuard)
 export class CategoriaController {
   constructor(
     private readonly categoriaService: CategoriaService,
@@ -14,6 +13,7 @@ export class CategoriaController {
   ) {}
 
   @Post()
+  @UseGuards(AuthGuard)
   async create(@Body() data: Prisma.CategoriaUncheckedCreateInput, @CurrentUser() user: any) {
     // Validar que el menú pertenezca a la empresa del usuario
     const menu = await this.menuService.findOne(data.menuId);
@@ -26,7 +26,7 @@ export class CategoriaController {
   }
 
   @Get()
-  async findAll(@Query('menuId') menuId: string, @CurrentUser() user: any) {
+  async findAll(@Query('menuId') menuId: string, @CurrentUser() user?: any) {
     if (!menuId) {
       throw new Error('menuId es requerido para buscar categorías');
     }
@@ -34,7 +34,8 @@ export class CategoriaController {
     const menu = await this.menuService.findOne(menuId);
     if (!menu) throw new ForbiddenException('Menú no encontrado');
 
-    if (user.rol !== Rol.ADMIN && (menu as any).sucursal.empresaId !== user.empresaId) {
+    // Solo validamos si hay un usuario logueado (Backoffice)
+    if (user && user.rol !== Rol.ADMIN && (menu as any).sucursal.empresaId !== user.empresaId) {
       throw new ForbiddenException('No tienes permiso para ver estas categorías');
     }
 
@@ -42,12 +43,13 @@ export class CategoriaController {
   }
 
   @Put(':id')
+  @UseGuards(AuthGuard)
   async update(@Param('id') id: string, @Body() data: Prisma.CategoriaUpdateInput, @CurrentUser() user: any) {
-    // Aquí idealmente buscaríamos la categoría para validar el empresaId, pero por brevedad:
     return this.categoriaService.update(id, data);
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard)
   async remove(@Param('id') id: string, @CurrentUser() user: any) {
     return this.categoriaService.remove(id);
   }

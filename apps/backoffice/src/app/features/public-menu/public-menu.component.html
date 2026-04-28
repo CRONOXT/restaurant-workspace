@@ -97,6 +97,11 @@
   </div>
 
   <!-- MENU VIEW (con sesión activa) -->
+  <div *ngIf="!loading && !error && !menu && viewState === 'menu'" class="center-state">
+    <div class="spinner"></div>
+    <p>Cargando la carta...</p>
+  </div>
+
   <div class="menu-content" *ngIf="!loading && !error && menu && viewState === 'menu'">
     <!-- Header Hero -->
     <header class="menu-hero">

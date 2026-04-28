@@ -9,6 +9,7 @@ import { EventsService } from '../../core/services/events.service';
 import { finalize } from 'rxjs/operators';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-mesas',
@@ -46,7 +47,15 @@ export class MesasComponent implements OnInit, OnDestroy {
   baseUrl = 'http://localhost:4200/mesa/';
 
   ngOnInit() {
-    this.baseUrl = `http://${window.location.hostname}:4200/mesa/`;
+    // Si estamos en localhost, intentamos extraer la IP del apiUrl para que el QR funcione en móviles
+    let hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      const apiHostname = environment.apiUrl.split('//')[1]?.split(':')[0];
+      if (apiHostname && apiHostname !== 'localhost') {
+        hostname = apiHostname;
+      }
+    }
+    this.baseUrl = `http://${hostname}:4200/mesa/`;
     this.loadMesas();
     this.setupWebSockets();
   }

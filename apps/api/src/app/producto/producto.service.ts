@@ -33,6 +33,10 @@ export class ProductoService {
     return { data, total };
   }
 
+  async findOne(id: string): Promise<Producto | null> {
+    return this.prisma.producto.findUnique({ where: { id } });
+  }
+
   async update(id: string, data: any): Promise<Producto> {
     const { id: _, createdAt, updatedAt, categoria, ...cleanData } = data;
     return this.prisma.producto.update({ where: { id }, data: cleanData });

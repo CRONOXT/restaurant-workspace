@@ -242,6 +242,12 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
         this.sesion = result.sesion;
         this.comensalActual = result.comensal;
         localStorage.setItem(this.TOKEN_KEY, result.token);
+        
+        // Si no tenemos el menú cargado aún, lo cargamos antes de cambiar de vista
+        if (!this.menu && this.sucursalId) {
+          this.loadMenuForSucursal(this.sucursalId);
+        }
+        
         this.viewState = 'menu';
         this.loading = false;
         this.setupWebSockets();
@@ -363,9 +369,9 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
   // --- MENU LOADING ---
 
   loadMenuForSucursal(sucId: string) {
-    this.http.get<Menu[]>(`${environment.apiUrl}/menu`).subscribe({
-      next: (menus) => {
-        const sucursalMenu = menus.find(m => m.sucursalId === sucId && m.isActive);
+    this.http.get<{ data: Menu[], total: number }>(`${environment.apiUrl}/menu`).subscribe({
+      next: (res) => {
+        const sucursalMenu = res.data.find(m => m.sucursalId === sucId && m.isActive);
         if (sucursalMenu) {
           this.menuId = sucursalMenu.id;
           this.menu = sucursalMenu;
@@ -390,11 +396,11 @@ export class PublicMenuComponent implements OnInit, OnDestroy {
   }
 
   loadFallbackMenu() {
-    this.http.get<Menu[]>(`${environment.apiUrl}/menu`).subscribe({
-      next: (menus) => {
-        if (menus && menus.length > 0) {
-          this.menuId = menus[0].id;
-          this.menu = menus[0];
+    this.http.get<{ data: Menu[], total: number }>(`${environment.apiUrl}/menu`).subscribe({
+      next: (res) => {
+        if (res.data && res.data.length > 0) {
+          this.menuId = res.data[0].id;
+          this.menu = res.data[0];
           this.loadCategories();
         } else {
           this.error = true;
